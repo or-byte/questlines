@@ -8,11 +8,11 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  fullName     String
-  role         Role
-  transactions Transaction[]
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  fullName  String
+  role      Role
+  timeSlots TimeSlot[]
 }
 
 model Host {
