@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  fullName  String
+  role      Role
+  timeSlots TimeSlot[]
+}
+
+model Host {
+  id     Int     @id @default(autoincrement())
+  slug   String  @unique
+  venues Venue[]
+}
+
+model Venue {
+  id        Int        @id @default(autoincrement())
+  slug      String     @unique
+  address   String
+  hostId    Int?
+  host      Host?      @relation(fields: [hostId], references: [id])
+  timeSlots TimeSlot[]
+}
+
+model TimeSlot {
+  id            Int      @id @default(autoincrement())
+  timeIn        DateTime
+  timeOut       DateTime
+  days          Int[]
+  basePrice     Decimal  @db.Decimal(10, 2)
+  userId        Int?
+  bookedBy      User?    @relation(fields: [userId], references: [id])
+  venue         Venue    @relation(fields: [venueId], references: [id])
+  venueId       Int
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
