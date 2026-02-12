@@ -1,5 +1,5 @@
 import prisma from "~/lib/prisma";
-import { createNewTimeSlot } from "~/lib/timeslot";
+import { createNewProduct, ProductFormData } from "~/lib/products";
 
 async function main() {
     const user1 = await prisma.user.create({
@@ -24,12 +24,16 @@ async function main() {
         }
     })
 
-    const MonThu = [1,2,3,4];
+    const products: ProductFormData[] = [
+        {
+            sku: "CANA-PB-1-WD",
+            name: "Pickleball Weekday per hour",
+            price: 300.00,
+            venueId: venue1.id
+        }
+    ]
 
-    await createNewTimeSlot(venue1.id, 16, 18, MonThu, 300);
-    await createNewTimeSlot(venue1.id, 18, 20, MonThu, 300);
-    await createNewTimeSlot(venue1.id, 20, 22, MonThu, 300);
-    await createNewTimeSlot(venue1.id, 22, 0, MonThu, 300);
+    products.forEach(async (p) => await createNewProduct(p));
 }
 
 main()

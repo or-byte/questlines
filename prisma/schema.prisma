@@ -8,11 +8,11 @@ datasource db {
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  fullName  String
-  role      Role
-  timeSlots TimeSlot[]
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  fullName     String
+  role         Role
+  transactions Transaction[]
 }
 
 model Host {
@@ -22,24 +22,34 @@ model Host {
 }
 
 model Venue {
-  id        Int        @id @default(autoincrement())
-  slug      String     @unique
-  address   String
-  hostId    Int?
-  host      Host?      @relation(fields: [hostId], references: [id])
-  timeSlots TimeSlot[]
+  id       Int       @id @default(autoincrement())
+  slug     String    @unique
+  address  String
+  hostId   Int?
+  host     Host?     @relation(fields: [hostId], references: [id])
+  products Product[]
 }
 
-model TimeSlot {
-  id            Int      @id @default(autoincrement())
-  timeIn        DateTime
-  timeOut       DateTime
-  days          Int[]
-  basePrice     Decimal  @db.Decimal(10, 2)
-  userId        Int?
-  bookedBy      User?    @relation(fields: [userId], references: [id])
-  venue         Venue    @relation(fields: [venueId], references: [id])
-  venueId       Int
+model Product {
+  id      Int    @id @default(autoincrement())
+  sku     String @unique
+  name    String
+  venueId Int
+  venue   Venue  @relation(fields: [venueId], references: [id])
+
+  price        Decimal       @db.Decimal(10, 2)
+  transactions Transaction[]
+}
+
+model Transaction {
+  Id           Int                       @id @default(autoincrement())
+  productId    Int
+  product      Product                   @relation(fields: [productId], references: [id])
+  reservedTime Unsupported("tstzrange")
+  quantity     Int
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
 }
 
 enum Role {
