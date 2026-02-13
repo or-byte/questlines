@@ -12,7 +12,7 @@ export const createNewTransaction = async (form: TransactionFormData) => {
     "use server";
     const { productId, userId, quantity, reservedTimeStart, reservedTimeEnd } = form;
 
-    const start = new Date(reservedTimeStart); 
+    const start = new Date(reservedTimeStart);
     const end = new Date(reservedTimeEnd);
 
     return await prisma.$queryRaw`
@@ -34,8 +34,22 @@ export const createNewTransaction = async (form: TransactionFormData) => {
     `
 }
 
+function getDayKey(date: Date) {
+    return date.toISOString().split("T")[0];
+}
+
+type CacheKey = string;
+const transactionCache = new Map<CacheKey, boolean>();
+
 export const hasTransactionInRange = async (productId: number, start: Date, end: Date) => {
     "use server"
+
+    const cacheKey = `${productId}-${getDayKey(start)}`
+
+    if (transactionCache.has(cacheKey)) {
+        return transactionCache.get(cacheKey)!;
+    }
+
     const result = await prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint as count
         FROM "Transaction"
@@ -43,5 +57,8 @@ export const hasTransactionInRange = async (productId: number, start: Date, end:
             AND "reservedTime" && tstzrange(${start}, ${end}, '[)')
     `
 
-    return Number(result[0].count) > 0
+    const hasTransaction = Number(result[0].count) > 0;
+    transactionCache.set(cacheKey, hasTransaction);
+
+    return hasTransaction;
 } 
