@@ -26,7 +26,7 @@ export const createNewTransaction = async (form: TransactionFormData) => {
                 tstzrange(${start}, ${end}, '[)')
             )
         RETURNING 
-            "Id",
+            "id",
             "productId",
             "userId",
             "quantity",

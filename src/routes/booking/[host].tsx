@@ -2,6 +2,7 @@ import { useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
+import { getSchedules } from "~/lib/schedule";
 import { createNewTransaction, hasTransactionInRange } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 
@@ -20,53 +21,83 @@ export default function Host() {
     const handleSelectVenue = (id: number) => setVenueId(id);
     const handleSelectProduct = (id: number) => setProductId(id);
 
-    const generateTimeSlots = () => {
-        const days = [new Date(), new Date(Date.now() + 24 * 60 * 60 * 1000)]; // today & tomorrow
-        const slots = [
-            { label: "6:00 PM - 8:00 PM", startHour: 18, endHour: 20 },
-            { label: "8:00 PM - 10:00 PM", startHour: 20, endHour: 22 },
-            { label: "10:00 PM - 12:00 AM", startHour: 22, endHour: 24 },
-        ];
+    const [allSchedules] = createResource(venueId, async (venueId) => {
+        if (!venueId) return [];
 
-        const result: { label: string; start: Date; end: Date }[] = [];
+        const products = await getProductsByVenueId(venueId);
+        if (!products.length) return [];
 
-        days.forEach(day => {
-            slots.forEach(slot => {
-                const start = new Date(day);
-                start.setHours(slot.startHour, 0, 0, 0);
+        const schedules = await Promise.all(
+            products.map(p => getSchedules(p.id))
+        );
 
-                const end = new Date(day);
-                end.setHours(slot.endHour, 0, 0, 0);
+        return schedules.flat().map(s => ({
+            ...s,
+            product: products.find(p => p.id === s.productId),
+        }));
+    });
 
-                const dayLabel = day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-                result.push({
-                    label: `${dayLabel} ${slot.label}`,
-                    start,
-                    end,
-                });
+    const buildSlotsFromSchedules = () => {
+        const result: {
+            label: string;
+            start: Date;
+            end: Date;
+            productId: number;
+            productName: string;
+            productPrice: number;
+        }[] = [];
+
+        const today = new Date();
+
+        if (!allSchedules()) return result;
+
+        allSchedules()!.forEach(schedule => {
+            const currentDay = today.getDay();
+            const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
+
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + diff);
+
+            const start = new Date(targetDate);
+            const end = new Date(targetDate);
+
+            start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
+            end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
+
+            const label = start.toLocaleString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+            }) + " - " +
+                end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+            result.push({
+                label,
+                start,
+                end,
+                productId: schedule.productId,
+                productName: schedule.product?.name || "Unknown",
+                productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
             });
         });
 
         return result;
     };
 
-    const timeSlots = generateTimeSlots();
     createEffect(() => {
-        const p = productId();
-        if (!p) return;
+        const slots = buildSlotsFromSchedules();
+        if (!slots.length) return;
 
         Promise.all(
-            timeSlots.map(async (slot) => {
+            slots.map(async slot => {
                 const isBooked = await hasTransactionInRange(
-                    p,
+                    slot.productId,
                     slot.start,
                     slot.end
                 );
-
-                return {
-                    key: `${slot.start.getTime()}-${slot.end.getTime()}`,
-                    isBooked
-                };
+                return { key: `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`, isBooked };
             })
         ).then(results => {
             const newAvailability: Record<string, boolean> = {};
@@ -74,13 +105,14 @@ export default function Host() {
             setAvailability(newAvailability);
         });
     });
-    const handleBookNow = async (slot: { start: Date; end: Date }) => {
+
+    const handleBookNow = async (slot: { start: Date; end: Date; productId: number }) => {
         const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60); // hours
 
         try {
             const newTransaction = await createNewTransaction({
-                productId: productId(),
-                userId: 1, //hardcoded user
+                productId: slot.productId,
+                userId: 1, // hardcoded user
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
@@ -88,7 +120,7 @@ export default function Host() {
 
             alert(`Booked successfully! Transaction ID: ${newTransaction[0].Id}`);
 
-            const key = `${slot.start.getTime()}-${slot.end.getTime()}`;
+            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
             setAvailability(prev => ({ ...prev, [key]: true }));
         } catch (err: any) {
             if (err.code === "23P01") {
@@ -123,31 +155,24 @@ export default function Host() {
             </section>
 
             <section>
-                <For each={products()}>
-                    {(p) => (
-                        <li>
-                            <button onClick={() => handleSelectProduct(p.id)}>
-                                {p.name} - {p.price}
-                            </button>
-                        </li>
-                    )}
-                </For>
-            </section>
-
-            <section>
-                <Show when={productId()}>
-                    <h3>Available Time Slots</h3>
+                <Show when={buildSlotsFromSchedules()}>
+                    <h3> Upcoming Schedules for{" "}
+                        {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}</h3>
                     <ul>
-                        <For each={timeSlots}>
+                        <For each={buildSlotsFromSchedules()}>
                             {(slot) => {
-                                const key = `${slot.start.getTime()}-${slot.end.getTime()}`;
+                                const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
+                                const hours = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
+                                const totalPrice = slot.productPrice * hours;
+
                                 return (
                                     <li>
-                                        {slot.label}{" "}
+                                        {slot.label} ({slot.productName}) - ₱{totalPrice.toFixed(2)}{" "}
                                         <Show when={availability()[key] !== undefined}>
                                             <Show
                                                 when={!availability()[key]}
-                                                fallback={<span> Booked!</span>}
+                                                fallback={<span>Booked!</span>}
                                             >
                                                 <button onClick={() => handleBookNow(slot)}>Book now</button>
                                             </Show>
@@ -159,6 +184,6 @@ export default function Host() {
                     </ul>
                 </Show>
             </section>
-        </div>
+        </div >
     )
 }

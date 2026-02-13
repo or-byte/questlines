@@ -1,9 +1,6 @@
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('ADMIN', 'CUSTOMER');
 
--- CreateEnum
-CREATE TYPE "TimeSlotStatus" AS ENUM ('OPEN', 'CLOSE', 'HOLIDAY');
-
 -- CreateTable
 CREATE TABLE "User" (
     "id" SERIAL NOT NULL,
@@ -45,13 +42,24 @@ CREATE TABLE "Product" (
 
 -- CreateTable
 CREATE TABLE "Transaction" (
-    "Id" SERIAL NOT NULL,
+    "id" SERIAL NOT NULL,
     "productId" INTEGER NOT NULL,
     "reservedTime" tstzrange NOT NULL,
     "quantity" INTEGER NOT NULL,
     "userId" INTEGER NOT NULL,
 
-    CONSTRAINT "Transaction_pkey" PRIMARY KEY ("Id")
+    CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Schedule" (
+    "id" SERIAL NOT NULL,
+    "productId" INTEGER NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+    "startTime" TIME NOT NULL,
+    "endTime" TIME NOT NULL,
+
+    CONSTRAINT "Schedule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -78,7 +86,10 @@ ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_productId_fkey" FOREIGN KE
 -- AddForeignKey
 ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- Booking Constraint
+-- AddForeignKey
+ALTER TABLE "Schedule" ADD CONSTRAINT "Schedule_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- No Overlap Constraints
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 ALTER TABLE "Transaction"
@@ -86,5 +97,16 @@ ADD CONSTRAINT "transaction_no_overlap"
 EXCLUDE USING gist (
   "productId" WITH =,
   "reservedTime" WITH &&
+);
+
+ALTER TABLE "Schedule"
+ADD CONSTRAINT no_overlapping_hours
+EXCLUDE USING GIST (
+  "productId" WITH =,
+  "dayOfWeek" WITH =,
+  tsrange(
+    timestamp '2000-01-01' + "startTime",
+    timestamp '2000-01-01' + "endTime"
+  ) WITH &&
 );
 

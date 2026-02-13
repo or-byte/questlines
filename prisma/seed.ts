@@ -1,5 +1,6 @@
 import prisma from "~/lib/prisma";
 import { createNewProduct, ProductFormData } from "~/lib/products";
+import { ScheduleFormData } from "~/lib/schedule";
 
 async function main() {
     const user1 = await prisma.user.create({
@@ -33,7 +34,32 @@ async function main() {
         }
     ]
 
-    products.forEach(async (p) => await createNewProduct(p));
+    for (const p of products) {
+        await createNewProduct(p);
+    }
+
+    const productId = 1;
+
+    const schedules: ScheduleFormData[] = [
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T18:00:00"),
+            endTime: new Date("1970-01-01T20:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T20:00:00"),
+            endTime: new Date("1970-01-01T22:00:00"),
+        },
+    ]
+
+    for (const schedule of schedules) {
+        await prisma.schedule.create({
+            data: schedule
+        })
+    }
 }
 
 main()
