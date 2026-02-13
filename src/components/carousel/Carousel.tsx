@@ -54,7 +54,7 @@ export default function Carousel(props: CarouselProps) {
             <div class="flex justify-center mt-4 gap-2">
                 <For each={props.images}>
                     {(image, i) => (
-                        <span class={`w-3 h-3 rounded-full cursor-pointer transition-colors duration-200
+                        <span class={`w-2 h-2 rounded-full cursor-pointer transition-colors duration-200
                     ${i() === index() ? "bg-[var(--color-accent-1)]" : "bg-[var(--color-accent-4)]"}`}
                             onClick={() => setIndex(i())}></span>
                     )}
