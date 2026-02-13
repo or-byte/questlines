@@ -118,7 +118,7 @@ export default function Host() {
                 reservedTimeEnd: slot.end,
             });
 
-            alert(`Booked successfully! Transaction ID: ${newTransaction[0].Id}`);
+            alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
 
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
             setAvailability(prev => ({ ...prev, [key]: true }));
