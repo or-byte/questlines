@@ -59,55 +59,6 @@ export default function Host() {
         }));
     }, { initialValue: [] });
 
-    const buildSlotsFromSchedules = () => {
-        const result: {
-            label: string;
-            start: Date;
-            end: Date;
-            productId: number;
-            productName: string;
-            productPrice: number;
-        }[] = [];
-
-        const today = new Date();
-
-        if (!allSchedules()) return result;
-
-        allSchedules()!.forEach(schedule => {
-            const currentDay = today.getDay();
-            const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
-
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + diff);
-
-            const start = new Date(targetDate);
-            const end = new Date(targetDate);
-
-            start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
-            end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
-
-            const label = start.toLocaleString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-            }) + " - " +
-                end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-
-            result.push({
-                label,
-                start,
-                end,
-                productId: schedule.productId,
-                productName: schedule.product?.name || "Unknown",
-                productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
-            });
-        });
-
-        return result;
-    };
-
     const slots = createMemo<{
         label: string;
         start: Date;
