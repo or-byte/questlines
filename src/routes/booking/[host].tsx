@@ -228,6 +228,7 @@ export default function Host() {
                                         </ul>
                                     </Show>
                                 </Show>
+
                                 <Show when={selectedSlot()}>
                                     {(slot) => {
                                         const hours =
