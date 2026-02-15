@@ -30,6 +30,7 @@ export default function Host() {
     } | null>(null);
 
     const [host] = createResource(params.host, getHostBySlug);
+
     const [venues] = createResource(() => host()?.id, getVenuesByHost);
     const [venueId, setVenueId] = createSignal<number>(0);
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
@@ -228,7 +229,6 @@ export default function Host() {
                                         </ul>
                                     </Show>
                                 </Show>
-
                                 <Show when={selectedSlot()}>
                                     {(slot) => {
                                         const hours =
