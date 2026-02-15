@@ -59,8 +59,8 @@ model Schedule {
   product   Product @relation(fields: [productId], references: [id])
 
   dayOfWeek Int
-  startTime DateTime @db.Time
-  endTime   DateTime @db.Time
+  startTime DateTime 
+  endTime   DateTime 
 }
 
 enum Role {

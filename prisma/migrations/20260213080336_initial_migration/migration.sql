@@ -56,8 +56,8 @@ CREATE TABLE "Schedule" (
     "id" SERIAL NOT NULL,
     "productId" INTEGER NOT NULL,
     "dayOfWeek" INTEGER NOT NULL,
-    "startTime" TIME NOT NULL,
-    "endTime" TIME NOT NULL,
+    "startTime" timestamp NOT NULL,
+    "endTime" timestamp NOT NULL,
 
     CONSTRAINT "Schedule_pkey" PRIMARY KEY ("id")
 );
@@ -104,9 +104,6 @@ ADD CONSTRAINT no_overlapping_hours
 EXCLUDE USING GIST (
   "productId" WITH =,
   "dayOfWeek" WITH =,
-  tsrange(
-    timestamp '2000-01-01' + "startTime",
-    timestamp '2000-01-01' + "endTime"
-  ) WITH &&
+  tsrange("startTime", "endTime") WITH &&
 );
 

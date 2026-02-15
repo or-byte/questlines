@@ -44,6 +44,42 @@ async function main() {
         {
             productId,
             dayOfWeek: 1,
+            startTime: new Date("1970-01-01T06:00:00"),
+            endTime: new Date("1970-01-01T08:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T08:00:00"),
+            endTime: new Date("1970-01-01T10:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T10:00:00"),
+            endTime: new Date("1970-01-01T12:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T12:00:00"),
+            endTime: new Date("1970-01-01T14:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T14:00:00"),
+            endTime: new Date("1970-01-01T16:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T16:00:00"),
+            endTime: new Date("1970-01-01T18:00:00"),
+        },
+        {
+            productId,
+            dayOfWeek: 1,
             startTime: new Date("1970-01-01T18:00:00"),
             endTime: new Date("1970-01-01T20:00:00"),
         },
@@ -53,7 +89,13 @@ async function main() {
             startTime: new Date("1970-01-01T20:00:00"),
             endTime: new Date("1970-01-01T22:00:00"),
         },
-    ]
+        {
+            productId,
+            dayOfWeek: 1,
+            startTime: new Date("1970-01-01T22:00:00"),
+            endTime: new Date("1970-01-02T00:00:00"),
+        },
+    ];
 
     for (const schedule of schedules) {
         await prisma.schedule.create({

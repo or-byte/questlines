@@ -3,7 +3,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { getSchedules } from "~/lib/schedule";
-import { createNewTransaction, hasTransactionInRange } from "~/lib/transaction";
+import { createNewTransaction, getTransactionsForDay } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 
 export default function Host() {
@@ -13,13 +13,10 @@ export default function Host() {
     const [venues] = createResource(() => host()?.id, getVenuesByHost);
 
     const [venueId, setVenueId] = createSignal<number>(0);
-    const [products] = createResource(() => venueId(), getProductsByVenueId);
-    const [productId, setProductId] = createSignal<number>(0);
 
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
 
     const handleSelectVenue = (id: number) => setVenueId(id);
-    const handleSelectProduct = (id: number) => setProductId(id);
 
     const [allSchedules] = createResource(venueId, async (venueId) => {
         if (!venueId) return [];
@@ -86,24 +83,26 @@ export default function Host() {
         return result;
     };
 
-    createEffect(() => {
-        const slots = buildSlotsFromSchedules();
-        if (!slots.length) return;
+    const [transactions] = createResource(()=> venueId() && allSchedules(), async (venueId) => {
+        if (!venueId || !allSchedules()) return [];
 
-        Promise.all(
-            slots.map(async slot => {
-                const isBooked = await hasTransactionInRange(
-                    slot.productId,
-                    slot.start,
-                    slot.end
-                );
-                return { key: `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`, isBooked };
-            })
-        ).then(results => {
-            const newAvailability: Record<string, boolean> = {};
-            results.forEach(r => newAvailability[r.key] = r.isBooked);
-            setAvailability(newAvailability);
-        });
+        const slots = buildSlotsFromSchedules();
+
+        const productIds = Array.from(new Set(slots.map(s => s.productId)));
+
+        const txs = await Promise.all(productIds.map(async (productId) => {
+            const dayStart = new Date(slots[0].start);
+            dayStart.setHours(0, 0, 0, 0);
+
+            const dayEnd = new Date(slots[0].start);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            const result = await getTransactionsForDay(productId, dayStart, dayEnd);
+            console.log(`Transactions for product ${productId}:`, result);
+            return result;
+        }));
+
+        return txs.flat();
     });
 
     const handleBookNow = async (slot: { start: Date; end: Date; productId: number }) => {
@@ -131,6 +130,28 @@ export default function Host() {
             }
         }
     };
+
+    createEffect(() => {
+        const slots = buildSlotsFromSchedules();
+        const txs = transactions() || [];
+        const newAvailability: Record<string, boolean> = {};
+
+        slots.forEach(slot => {
+            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
+            const isBooked = txs.some(tx => {
+                const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
+                const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
+                return slot.start < txEnd && slot.end > txStart;
+            });
+
+            console.log(`Slot ${slot.label} for product ${slot.productId} isBooked:`, isBooked);
+
+            newAvailability[key] = isBooked;
+        });
+
+        setAvailability(newAvailability);
+    });
 
     return (
         <div>
@@ -163,20 +184,22 @@ export default function Host() {
                             {(slot) => {
                                 const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
-                                const hours = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
+                                let endTime = new Date(slot.end);
+                                if (endTime <= slot.start) {
+                                    endTime.setDate(endTime.getDate() + 1);
+                                }
+
+                                const hours = (endTime.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
                                 const totalPrice = slot.productPrice * hours;
 
                                 return (
                                     <li>
                                         {slot.label} ({slot.productName}) - ₱{totalPrice.toFixed(2)}{" "}
-                                        <Show when={availability()[key] !== undefined}>
-                                            <Show
-                                                when={!availability()[key]}
-                                                fallback={<span>Booked!</span>}
-                                            >
-                                                <button onClick={() => handleBookNow(slot)}>Book now</button>
-                                            </Show>
-                                        </Show>
+                                        {!availability()[key] ? (
+                                            <button onClick={() => handleBookNow(slot)}>Book now</button>
+                                        ) : (
+                                            <span>Booked!</span>
+                                        )}
                                     </li>
                                 )
                             }}
