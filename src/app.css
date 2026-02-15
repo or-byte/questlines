@@ -117,4 +117,8 @@ p {
   .body-3 {
     @apply font-normal text-xs;
   }
+
+  .spinner {
+    @apply w-8 h-8 border-4 border-[var(--color-footer)]/30 border-t-[var(--color-accent-1)] rounded-full animate-spin
+  }
 }
