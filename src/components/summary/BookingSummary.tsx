@@ -25,7 +25,7 @@ export default function BookingSummary(props: BookingSummaryProps) {
       </div>
       <div class="border-t border-neutral-300 pt-4 flex items-center justify-between">
         <span class="font-medium">Total:</span>
-        <span class="font-semibold">{props.total}</span>
+        <span class="font-semibold">{`${props.total}`}</span>
       </div>
 
       <Button
