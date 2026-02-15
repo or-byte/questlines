@@ -20,7 +20,8 @@ export default function Host() {
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
     ]; //static
-    const [selectedCourtId, setSelectedCourtId] = createSignal<number>(1); //static. CHANGE THIS BEFORE COMMIT
+    const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0); //static. CHANGE THIS BEFORE COMMIT
+    const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedSlot, setSelectedSlot] = createSignal<{
         label: string;
         start: Date;
@@ -31,188 +32,210 @@ export default function Host() {
     } | null>(null);
 
     const [host] = createResource(params.host, getHostBySlug);
-
     const [venues] = createResource(() => host()?.id, getVenuesByHost);
-
     const [venueId, setVenueId] = createSignal<number>(0);
-
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
 
     const handleSelectVenue = (id: number) => {
-        if (venueId() === id) return;   // prevents refetch flicker
-        setSelectedSlot(null);
+        if (venueId() === id) return;
+        setIsChangingVenue(true);
         setVenueId(id);
         setSelectedCourtId(id);
+        setSelectedSlot(null);
     };
 
-    // const [allSchedules] = createResource(venueId, async (venueId) => {
-    //     if (!venueId) return [];
+    const [allSchedules] = createResource(venueId, async (venueId) => {
+        if (!venueId) return [];
 
-    //     const products = await getProductsByVenueId(venueId);
-    //     if (!products.length) return [];
+        const products = await getProductsByVenueId(venueId);
+        if (!products.length) return [];
 
-    //     const schedules = await Promise.all(
-    //         products.map(p => getSchedules(p.id))
-    //     );
+        const schedules = await Promise.all(
+            products.map(p => getSchedules(p.id))
+        );
 
-    //     return schedules.flat().map(s => ({
-    //         ...s,
-    //         product: products.find(p => p.id === s.productId),
-    //     }));
-    // }, { initialValue: [] });
+        return schedules.flat().map(s => ({
+            ...s,
+            product: products.find(p => p.id === s.productId),
+        }));
+    }, { initialValue: [] });
 
-    // const buildSlotsFromSchedules = () => {
-    //     const result: {
-    //         label: string;
-    //         start: Date;
-    //         end: Date;
-    //         productId: number;
-    //         productName: string;
-    //         productPrice: number;
-    //     }[] = [];
+    const buildSlotsFromSchedules = () => {
+        const result: {
+            label: string;
+            start: Date;
+            end: Date;
+            productId: number;
+            productName: string;
+            productPrice: number;
+        }[] = [];
 
-    //     const today = new Date();
+        const today = new Date();
 
-    //     if (!allSchedules()) return result;
+        if (!allSchedules()) return result;
 
-    //     allSchedules()!.forEach(schedule => {
-    //         const currentDay = today.getDay();
-    //         const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
+        allSchedules()!.forEach(schedule => {
+            const currentDay = today.getDay();
+            const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
 
-    //         const targetDate = new Date(today);
-    //         targetDate.setDate(today.getDate() + diff);
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + diff);
 
-    //         const start = new Date(targetDate);
-    //         const end = new Date(targetDate);
+            const start = new Date(targetDate);
+            const end = new Date(targetDate);
 
-    //         start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
-    //         end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
+            start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
+            end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
 
-    //         const label = start.toLocaleString(undefined, {
-    //             weekday: "short",
-    //             month: "short",
-    //             day: "numeric",
-    //             hour: "numeric",
-    //             minute: "2-digit",
-    //         }) + " - " +
-    //             end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+            const label = start.toLocaleString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+            }) + " - " +
+                end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
-    //         result.push({
-    //             label,
-    //             start,
-    //             end,
-    //             productId: schedule.productId,
-    //             productName: schedule.product?.name || "Unknown",
-    //             productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
-    //         });
-    //     });
+            result.push({
+                label,
+                start,
+                end,
+                productId: schedule.productId,
+                productName: schedule.product?.name || "Unknown",
+                productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
+            });
+        });
 
-    //     return result;
-    // };
+        return result;
+    };
 
-    const [slotsWithAvailability] = createResource(
-        venueId,
-        async (venueId) => {
-            if (!venueId) {
-                return { slots: [], availability: {} };
-            }
+    const slots = createMemo<{
+        label: string;
+        start: Date;
+        end: Date;
+        productId: number;
+        productName: string;
+        productPrice: number;
+    }[]>((prev) => {
+        if (isChangingVenue()) {
+            return [];
+        }
 
-            // Fetch products
-            const products = await getProductsByVenueId(venueId);
-            if (!products.length) {
-                return { slots: [], availability: {} };
-            }
+        if (allSchedules.loading) {
+            return prev || [];
+        }
 
-            // Fetch all schedules
-            const schedules = await Promise.all(
-                products.map(p => getSchedules(p.id))
-            );
+        const result: {
+            label: string;
+            start: Date;
+            end: Date;
+            productId: number;
+            productName: string;
+            productPrice: number;
+        }[] = [];
 
-            const allSchedules = schedules.flat().map(s => ({
-                ...s,
-                product: products.find(p => p.id === s.productId),
+        const today = new Date();
+
+        if (!allSchedules()) return result;
+
+        allSchedules()!.forEach(schedule => {
+            const currentDay = today.getDay();
+            const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
+
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + diff);
+
+            const start = new Date(targetDate);
+            const end = new Date(targetDate);
+
+            start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
+            end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
+
+            const label = start.toLocaleString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+            }) + " - " +
+                end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+            result.push({
+                label,
+                start,
+                end,
+                productId: schedule.productId,
+                productName: schedule.product?.name || "Unknown",
+                productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
+            });
+        });
+
+        return result;
+    }, []);
+
+    const [transactions] = createResource(
+        () => venueId() && slots().length > 0,
+        async () => {
+            const currentSlots = slots();
+            if (!currentSlots.length) return [];
+
+            const productIds = Array.from(new Set(currentSlots.map(s => s.productId)));
+
+            const txs = await Promise.all(productIds.map(async (productId) => {
+                const dayStart = new Date(currentSlots[0].start);
+                dayStart.setHours(0, 0, 0, 0);
+
+                const dayEnd = new Date(currentSlots[0].start);
+                dayEnd.setHours(23, 59, 59, 999);
+
+                return await getTransactionsForDay(productId, dayStart, dayEnd);
             }));
 
-            // Build slots
-            const today = new Date();
-            const slots: {
-                label: string;
-                start: Date;
-                end: Date;
-                productId: number;
-                productName: string;
-                productPrice: number;
-            }[] = [];
-
-            allSchedules.forEach(schedule => {
-                const currentDay = today.getDay();
-                const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
-                const targetDate = new Date(today);
-                targetDate.setDate(today.getDate() + diff);
-
-                const start = new Date(targetDate);
-                const end = new Date(targetDate);
-                start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
-                end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
-
-                const label = start.toLocaleString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                }) + " - " +
-                    end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-
-                slots.push({
-                    label,
-                    start,
-                    end,
-                    productId: schedule.productId,
-                    productName: schedule.product?.name || "Unknown",
-                    productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
-                });
-            });
-
-            // Check availability for all slots
-            const availabilityResults = await Promise.all(
-                slots.map(async slot => {
-                    const isBooked = await hasTransactionInRange(
-                        slot.productId,
-                        slot.start,
-                        slot.end
-                    );
-                    return {
-                        key: `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`,
-                        isBooked
-                    };
-                })
-            );
-
-            const availability: Record<string, boolean> = {};
-            availabilityResults.forEach(r => availability[r.key] = r.isBooked);
-
-            return { slots, availability };
+            return txs.flat();
         },
-        { initialValue: { slots: [], availability: {} } }
+        { initialValue: [] }
     );
 
+    createEffect(() => {
+        const currentSlots = slots();
+        const txs = transactions() || [];
+        const newAvailability: Record<string, boolean> = {};
+
+        currentSlots.forEach(slot => {
+            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
+            const isBooked = txs.some(tx => {
+                const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
+                const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
+                return slot.start < txEnd && slot.end > txStart;
+            });
+
+            newAvailability[key] = isBooked;
+        });
+
+        setAvailability(newAvailability);
+    });
+
+    createEffect(() => {
+        if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
+            setIsChangingVenue(false);
+        }
+    });
+
     const handleBookNow = async (slot: { start: Date; end: Date; productId: number }) => {
-        const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60); // hours
+        const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
 
         try {
             const newTransaction = await createNewTransaction({
                 productId: slot.productId,
-                userId: 1, // hardcoded user
+                userId: 1,
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
             });
 
             alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
-
-            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-            setAvailability(prev => ({ ...prev, [key]: true }));
+            window.location.reload();
         } catch (err: any) {
             if (err.code === "23P01") {
                 alert("Sorry, this slot is already booked.");
@@ -223,15 +246,17 @@ export default function Host() {
         }
     };
 
-    const formatTime = (isoString: Date) =>
-        new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const timeSlot = (start: string, end: string) => { return `${start} - ${end}` }
-
     return (
         <main>
             <Title>Booking</Title>
             <div class="mx-30">
-                <Show when={host()}>
+                <Show
+                    when={!host.loading && host()}
+                    fallback={
+                        <div class="flex justify-center">
+                            <div class="spinner"></div>
+                        </div>
+                    }>
                     <h1 class="text-[var(--color-text-1)] text-justify">{host()?.slug}</h1>
                     <div class="mt-[20px]"><Carousel images={imageUrls} /></div>
                     <div class="flex flex-col lg:flex-row gap-20 items-start mt-[20px]">
@@ -251,18 +276,21 @@ export default function Host() {
                                 </div>
                             </Show>
                             <div>
-                                <Show when={!slotsWithAvailability.loading} fallback={
-                                    <div class="py-8">
-                                        <Skeleton height={100} />
-                                    </div>
-                                }>
-                                    <Show when={slotsWithAvailability()?.slots.length}>
+                                <Show
+                                    when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
+                                    fallback={
+                                        <div class="flex justify-center">
+                                            <div class="spinner"></div>
+                                        </div>
+                                    }
+                                >
+                                    <Show when={slots().length}>
                                         <h2 class="text-[var(--color-text-1)] text-justify mb-4">
                                             Upcoming Schedules for{" "}
                                             {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
                                         </h2>
                                         <ul class="grid grid-cols-2 gap-6 w-full">
-                                            <For each={slotsWithAvailability()!.slots}>
+                                            <For each={slots()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
                                                     const hours = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
@@ -274,8 +302,8 @@ export default function Host() {
                                                             price={totalPrice.toFixed(2)}
                                                             isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
                                                                 && selectedSlot()?.productId === slot.productId}
-                                                            isAvailable={slotsWithAvailability()!.availability[key]}
-                                                            onClick={() => setSelectedSlot(slot)}
+                                                            isAvailable={!availability()[key]}
+                                                            onClick={[setSelectedSlot, slot]}
                                                         />
                                                     );
                                                 }}
