@@ -2,6 +2,7 @@ import { ParentProps, JSX } from "solid-js";
 
 type SlotContainerProps = ParentProps<{
     isSelected: boolean;
+    isAvailable: boolean;
     onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
 }>;
 
@@ -15,7 +16,7 @@ export default function SlotContainer(props: SlotContainerProps) {
                 transition-all duration-200 cursor-pointer
                 bg-[var(--color-bg-2)]
                 border
-                hover:border-[var(--color-accent-1)]
+                ${props.isAvailable ? "hover:border-[var(--color-accent-1)]" : "opacity-50 cursor-not-allowed pointer-events-none"}
                 ${props.isSelected ? "border-[var(--color-accent-1)]" : "border-transparent"}
             `}
         >

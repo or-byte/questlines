@@ -5,7 +5,7 @@ import { useNavigate } from "@solidjs/router";
 
 const menuItems = [
     { href: "/about", label: "about" },
-    { href: "/booking", label: "booking" },
+    { href: "/booking_sample", label: "booking" },
 ];
 
 export default function NavBar() {
