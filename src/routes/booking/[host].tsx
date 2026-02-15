@@ -199,20 +199,25 @@ export default function Host() {
     return (
         <main>
             <Title>Booking</Title>
-            <div class="mx-30">
+            <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
                 <Show
                     when={!host.loading && host()}
                     fallback={
-                        <div class="flex justify-center">
+                        <div class="flex justify-center items-center min-h-screen">
                             <div class="spinner"></div>
                         </div>
                     }>
-                    <h1 class="text-[var(--color-text-1)] text-justify">{host()?.slug}</h1>
-                    <div class="mt-[20px]"><Carousel images={imageUrls} /></div>
-                    <div class="flex flex-col lg:flex-row gap-20 items-start mt-[20px]">
-                        <div class="flex-1 min-w-0 space-y-10">
+                    <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
+                        {host()?.slug}
+                    </h1>
+                    <div class="mt-4 sm:mt-6 lg:mt-[20px]">
+                        <Carousel images={imageUrls} />
+                    </div>
+                    <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
+                        {/* Main content */}
+                        <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
                             <Show when={venues()}>
-                                <div class="flex flex-col gap-[20px] w-full mt-[20px]">
+                                <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
                                     <For each={venues()}>
                                         {(v) => (
                                             <CourtCard
@@ -225,21 +230,22 @@ export default function Host() {
                                     </For>
                                 </div>
                             </Show>
+
                             <div>
                                 <Show
                                     when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
                                     fallback={
-                                        <div class="flex justify-center">
+                                        <div class="flex justify-center py-12">
                                             <div class="spinner"></div>
                                         </div>
                                     }
                                 >
                                     <Show when={slots().length}>
-                                        <h2 class="text-[var(--color-text-1)] text-justify mb-4">
+                                        <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
                                             Upcoming Schedules for{" "}
                                             {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
                                         </h2>
-                                        <ul class="grid grid-cols-2 gap-6 w-full">
+                                        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
                                             <For each={slots()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
@@ -261,6 +267,7 @@ export default function Host() {
                                         </ul>
                                     </Show>
                                 </Show>
+
                                 <Show when={selectedSlot()}>
                                     {(slot) => {
                                         const hours =
@@ -269,7 +276,7 @@ export default function Host() {
 
                                         return (
                                             <>
-                                                <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-6" />
+                                                <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
                                                 <BookingSummary
                                                     rows={[
                                                         { label: 'Schedule', value: slot().label },
@@ -277,20 +284,23 @@ export default function Host() {
                                                     ]}
                                                     total={totalPrice.toFixed(2).toString()}
                                                     onBook={() => handleBookNow(slot())}
-                                                /></>
+                                                />
+                                            </>
                                         );
                                     }}
                                 </Show>
                             </div>
                         </div>
-                        <aside class="w-full lg:w-[490px] shrink-0 space-y-10 lg:sticky lg:top-8">
+
+                        {/* Sidebar */}
+                        <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
                             <div class="flex justify-between w-full items-center">
-                                <h3 class="text-[var(--color-text-1)]">Operating Hours</h3>
+                                <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">Operating Hours</h3>
                                 <StatusPill status="closed" />
                             </div>
-                            <div class="flex justify-between pl-[30px]">
-                                <p class="body-2">Mon - Fri</p>
-                                <p class="body-2">6:00 AM - 12:00 AM</p>
+                            <div class="flex justify-between pl-4 sm:pl-6 lg:pl-[30px]">
+                                <p class="body-2 text-sm sm:text-base">Mon - Fri</p>
+                                <p class="body-2 text-sm sm:text-base">6:00 AM - 12:00 AM</p>
                             </div>
                             <InfoPanel
                                 email="sampleemail@gmail.com"
@@ -303,6 +313,6 @@ export default function Host() {
                     </div>
                 </Show>
             </div>
-        </main >
+        </main>
     )
 }

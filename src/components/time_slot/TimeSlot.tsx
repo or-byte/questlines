@@ -16,18 +16,18 @@ export default function TimeSlot(props: TimeSlotProps) {
 
     return (
         <SlotContainer isSelected={props.isSelected} onClick={props.onClick} isAvailable={props.isAvailable}>
-            <div class="flex flex-col items-start gap-[20px] w-full">
-                <div class="flex flex-col">
-                    <p class="subheader-1 whitespace-nowrap">{props.time}</p>
+            <div class="flex flex-col items-start gap-3 sm:gap-4 lg:gap-[20px] w-full min-w-0">
+                <div class="flex flex-col w-full min-w-0">
+                    <p class="subheader-1 break-words overflow-wrap-anywhere text-justify">{props.time}</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <p class="text-[var(--color-footer)]">{`₱${props.price}`}</p>
-                    <p class="body-3 text-[var(--color-footer)]">per hour</p>
+                <div class="flex flex-wrap items-center gap-1 sm:gap-2">
+                    <p class="text-[var(--color-footer)] text-sm sm:text-base">{`₱${props.price}`}</p>
+                    <p class="body-3 text-[var(--color-footer)] text-xs sm:text-sm whitespace-nowrap text-justify">per hour</p>
                 </div>
-                <div class={`${statusColorBg} rounded-[5px] px-2 py-1`}>
-                    <p class={statusColorText}>{availability}</p>
+                <div class={`${statusColorBg} rounded-[5px] px-2 py-1 inline-block`}>
+                    <p class={`${statusColorText} text-xs sm:text-sm whitespace-nowrap`}>{availability}</p>
                 </div>
             </div>
         </SlotContainer>
-    )
+    );
 }
