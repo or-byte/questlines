@@ -19,7 +19,7 @@ export default function Host() {
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
     ]; //static
-    const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0); //static. CHANGE THIS BEFORE COMMIT
+    const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedSlot, setSelectedSlot] = createSignal<{
         label: string;
