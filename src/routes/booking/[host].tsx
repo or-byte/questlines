@@ -3,7 +3,7 @@ import { useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
-import { getSchedules } from "~/lib/schedule";
+import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
 import { createNewTransaction, getTransactionsForDay } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
@@ -75,52 +75,15 @@ export default function Host() {
             return prev || [];
         }
 
-        const result: {
-            label: string;
-            start: Date;
-            end: Date;
-            productId: number;
-            productName: string;
-            productPrice: number;
-        }[] = [];
+        if (!allSchedules()) return [];
 
-        const today = new Date();
-
-        if (!allSchedules()) return result;
+        const results : FormattedSchedule[] = [];
 
         allSchedules()!.forEach(schedule => {
-            const currentDay = today.getDay();
-            const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
-
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + diff);
-
-            const start = new Date(targetDate);
-            const end = new Date(targetDate);
-
-            start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
-            end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
-
-            const label = start.toLocaleString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-            }) + " - " +
-                end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-
-            result.push({
-                label,
-                start,
-                end,
-                productId: schedule.productId,
-                productName: schedule.product?.name || "Unknown",
-                productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
-            });
+            results.push(formatSchedules(schedule));
         });
 
-        return result;
+        return results;
     }, []);
 
     const [transactions] = createResource(
@@ -249,13 +212,11 @@ export default function Host() {
                                             <For each={slots()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                                                    const hours = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
-                                                    const totalPrice = slot.productPrice * hours;
 
                                                     return (
                                                         <TimeSlot
                                                             time={slot.label}
-                                                            price={totalPrice.toFixed(2)}
+                                                            price={slot.productPrice.toFixed(2)}
                                                             isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
                                                                 && selectedSlot()?.productId === slot.productId}
                                                             isAvailable={!availability()[key]}
@@ -273,7 +234,7 @@ export default function Host() {
                                         const hours =
                                             (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
                                         const totalPrice = slot().productPrice * hours;
-
+                                        
                                         return (
                                             <>
                                                 <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />

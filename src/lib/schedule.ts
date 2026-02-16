@@ -1,10 +1,22 @@
 import prisma from "./prisma";
+import { Schedule as PrismaSchedule } from "@prisma/client"
+
+export type Schedule = PrismaSchedule;
 
 export type ScheduleFormData = {
     productId: number
     dayOfWeek: number,
     startTime: Date,
     endTime: Date
+}
+
+export type FormattedSchedule = {
+    label: string
+    start: Date
+    end: Date
+    productId: number
+    productName: string
+    productPrice: number
 }
 
 export const createNewSchedule = async (form: ScheduleFormData) => {
@@ -60,4 +72,44 @@ export const getSchedules = async (productId: number) => {
             { startTime: "asc" }
         ]
     })
+}
+
+export const formatSchedules = (schedule: Schedule) => {
+    const today = new Date();
+
+    const currentDay = today.getDay();
+    const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
+
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + diff);
+
+    const start = new Date(targetDate);
+    const end = new Date(targetDate);
+
+    start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
+    end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
+
+    if (end <= start) {
+        end.setDate(end.getDate() + 1);
+    }
+
+    const label = start.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    }) + " - " +
+        end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+    const formattedSchedule: FormattedSchedule = {
+        label,
+        start,
+        end,
+        productId: schedule.productId,
+        productName: schedule.product?.name || "Unknown",
+        productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
+    };
+
+    return formattedSchedule;
 }
