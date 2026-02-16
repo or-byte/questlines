@@ -8,11 +8,16 @@
     "version": "vinxi version"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.2",
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.15.0",
     "@solidjs/start": "^1.1.0",
     "solid-js": "^1.9.5",
     "vinxi": "^0.5.7"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.2",
+    "tsx": "^4.21.0"
   },
   "engines": {
     "node": ">=22"
