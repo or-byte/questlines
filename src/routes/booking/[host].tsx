@@ -188,6 +188,7 @@ export default function Host() {
                                                 thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
                                                 isSelected={selectedCourtId() === v.id}
                                                 onClick={[handleSelectVenue, v.id]}
+                                                status="open"
                                             />
                                         )}
                                     </For>
