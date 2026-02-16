@@ -4,7 +4,7 @@ import { createEffect, createResource, createSignal, For, Show, createMemo } fro
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
-import { createNewTransaction, getTransactionsForDay } from "~/lib/transaction";
+import { createNewTransaction, createPaymongoCheckout, getTransactionsForDay } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
 import CourtCard from "~/components/court_card/CourtCard";
@@ -134,11 +134,13 @@ export default function Host() {
         }
     });
 
-    const handleBookNow = async (slot: { start: Date; end: Date; productId: number }) => {
-        const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
-
+    const handleBookNow = async (slot: {
+        start: Date;
+        end: Date;
+        productId: number;
+    }) => {
         try {
-            const newTransaction = await createNewTransaction({
+            const checkoutUrl = await createPaymongoCheckout({
                 productId: slot.productId,
                 userId: 1,
                 quantity,
@@ -147,15 +149,11 @@ export default function Host() {
                 status: 'PENDING'
             });
 
-            alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
-            window.location.reload();
-        } catch (err: any) {
-            if (err.code === "23P01") {
-                alert("Sorry, this slot is already booked.");
-            } else {
-                console.error(err);
-                alert("Something went wrong.");
-            }
+            window.location.href = checkoutUrl;
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to start checkout.");
         }
     };
 
@@ -257,7 +255,7 @@ export default function Host() {
                                         const hours =
                                             (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
                                         const totalPrice = slot().productPrice * hours;
-                                        
+
                                         return (
                                             <>
                                                 <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
