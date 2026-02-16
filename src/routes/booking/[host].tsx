@@ -76,7 +76,7 @@ export default function Host() {
 
         if (!allSchedules()) return [];
 
-        const results : FormattedSchedule[] = [];
+        const results: FormattedSchedule[] = [];
 
         allSchedules()!.forEach(schedule => {
             results.push(formatSchedules(schedule));
@@ -134,11 +134,15 @@ export default function Host() {
         }
     });
 
-    const handleBookNow = async (slot: {
-        start: Date;
-        end: Date;
-        productId: number;
-    }) => {
+    const handleBookNow = async (
+        quantity: number,
+        slot: {
+            start: Date;
+            end: Date;
+            productId: number;
+            productName: string;
+            productPrice: number;
+        }) => {
         try {
             const checkoutUrl = await createPaymongoCheckout({
                 productId: slot.productId,
@@ -265,7 +269,7 @@ export default function Host() {
                                                         { label: 'Price per hour', value: `₱${slot().productPrice.toFixed(2)}` },
                                                     ]}
                                                     total={totalPrice.toFixed(2).toString()}
-                                                    onBook={() => handleBookNow(slot())}
+                                                    onBook={() => handleBookNow(hours, slot())}
                                                 />
                                             </>
                                         );

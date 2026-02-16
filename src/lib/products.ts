@@ -1,4 +1,7 @@
 import prisma from "./prisma";
+import { Product as PrismaProduct } from "@prisma/client"
+
+export type Product = PrismaProduct;
 
 export type ProductFormData = {
     sku: string
