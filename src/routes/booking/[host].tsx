@@ -11,7 +11,6 @@ import CourtCard from "~/components/court_card/CourtCard";
 import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
-import StatusPill from "~/components/pill/StatusPill";
 
 export default function Host() {
     const params = useParams();
@@ -258,7 +257,6 @@ export default function Host() {
                         <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
                             <div class="flex justify-between w-full items-center">
                                 <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">Operating Hours</h3>
-                                <StatusPill status="closed" />
                             </div>
                             <div class="flex justify-between pl-4 sm:pl-6 lg:pl-[30px]">
                                 <p class="body-2 text-sm sm:text-base">Mon - Fri</p>
