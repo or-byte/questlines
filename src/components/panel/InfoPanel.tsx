@@ -57,7 +57,7 @@ const IconRow = (props: { icon: any; text: string }) => {
   return (
     <div class="flex items-center gap-4">
       <Icon size={20} class="text-[var(--color-footer)]" />
-      <p class="body-2 text-[var(--color-footer)]">{props.text}</p>
+      <p class="body-2 text-[var(--color-footer)] whitespace-nowrap">{props.text}</p>
     </div>
   );
 };

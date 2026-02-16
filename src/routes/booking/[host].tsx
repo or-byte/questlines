@@ -16,9 +16,10 @@ import StatusPill from "~/components/pill/StatusPill";
 export default function Host() {
     const params = useParams();
     const imageUrls = [
-        'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
-        'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
-    ]; //static
+        '/images/cana_img_1.png',
+        '/images/cana_img_2.png',
+        '/images/cana_img_3.jpg'
+    ];
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedSlot, setSelectedSlot] = createSignal<{
@@ -217,7 +218,7 @@ export default function Host() {
                                         {(v) => (
                                             <CourtCard
                                                 title={v.slug}
-                                                thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
+                                                thumbnail="/images/cana_img_2.png"
                                                 isSelected={selectedCourtId() === v.id}
                                                 onClick={[handleSelectVenue, v.id]}
                                             />
@@ -289,13 +290,13 @@ export default function Host() {
                                 <StatusPill status="closed" />
                             </div>
                             <div class="flex justify-between pl-[30px]">
-                                <p class="body-2">Mon - Fri</p>
-                                <p class="body-2">6:00 AM - 12:00 AM</p>
+                                <p class="body-2">Mon - Sun</p>
+                                <p class="body-2">6:00 AM - 12:00 MN</p>
                             </div>
                             <InfoPanel
                                 email="sampleemail@gmail.com"
-                                address="Address, address, address"
-                                contact="+63 991 123 4561"
+                                address="Tandayag, Amlan, Negros Oriental, 6203, Philippines"
+                                contact="+63 915 156 8267"
                                 facilities={["Facility1", "Facility2"]}
                                 rules={["rule1", "rule1"]}
                             />
