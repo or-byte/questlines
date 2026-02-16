@@ -243,13 +243,11 @@ export default function Host() {
                                             <For each={slots()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                                                    const hours = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
-                                                    const totalPrice = slot.productPrice * hours;
 
                                                     return (
                                                         <TimeSlot
                                                             time={slot.label}
-                                                            price={totalPrice.toFixed(2)}
+                                                            price={slot.productPrice.toFixed(2)}
                                                             isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
                                                                 && selectedSlot()?.productId === slot.productId}
                                                             isAvailable={!availability()[key]}
@@ -263,8 +261,12 @@ export default function Host() {
                                 </Show>
                                 <Show when={selectedSlot()}>
                                     {(slot) => {
+                                        let endTime = new Date(slot().end);
+                                        if (endTime <= slot().start) {
+                                            endTime.setDate(endTime.getDate() + 1);
+                                        }
                                         const hours =
-                                            (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
+                                            (endTime.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
                                         const totalPrice = slot().productPrice * hours;
 
                                         return (
