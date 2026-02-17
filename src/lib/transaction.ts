@@ -44,3 +44,11 @@ export const getTransactionsForDay = async (productId: number, dayStart: Date, d
             AND "reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
     `;
 }
+
+export const deleteTransaction = async (transactionId: number) => {
+    "use server"
+
+    return await prisma.transaction.delete({
+        where: { id: transactionId }
+    });
+}
