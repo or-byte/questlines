@@ -48,6 +48,7 @@ model Transaction {
   product      Product                  @relation(fields: [productId], references: [id])
   reservedTime Unsupported("tstzrange")
   quantity     Int
+  status       TransactionStatus        @default(PENDING)
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
@@ -59,11 +60,17 @@ model Schedule {
   product   Product @relation(fields: [productId], references: [id])
 
   dayOfWeek Int
-  startTime DateTime 
-  endTime   DateTime 
+  startTime DateTime
+  endTime   DateTime
 }
 
 enum Role {
   ADMIN
   CUSTOMER
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  CANCELLED
 }
