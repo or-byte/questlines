@@ -145,14 +145,16 @@ export default function Host() {
             productPrice: number;
         }) => {
         try {
-            const checkoutUrl = await createPaymongoCheckout({
-                productId: slot.productId,
-                userId: 1,
+            const checkoutUrl = await createPaymongoCheckout(
                 quantity,
-                reservedTimeStart: slot.start,
-                reservedTimeEnd: slot.end,
-                status: 'PENDING'
-            });
+                {
+                    productId: slot.productId,
+                    start: slot.start,
+                    end: slot.end,
+                    productName: slot.productName,
+                    productPrice: slot.productPrice,
+                }
+            );
 
             window.location.href = checkoutUrl;
 
@@ -161,28 +163,6 @@ export default function Host() {
             alert("Failed to start checkout.");
         }
     };
-
-    createEffect(() => {
-        const slots = buildSlotsFromSchedules();
-        const txs = transactions() || [];
-        const newAvailability: Record<string, boolean> = {};
-
-        slots.forEach(slot => {
-            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-
-            const isBooked = txs.some(tx => {
-                const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
-                const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
-                return slot.start < txEnd && slot.end > txStart;
-            });
-
-            console.log(`Slot ${slot.label} for product ${slot.productId} isBooked:`, isBooked);
-
-            newAvailability[key] = isBooked;
-        });
-
-        setAvailability(newAvailability);
-    });
 
     return (
         <main>

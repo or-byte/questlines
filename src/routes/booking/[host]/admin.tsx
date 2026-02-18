@@ -87,7 +87,7 @@ export default function Host() {
         return results;
     }, []);
 
-    const [transactions] = createResource(
+    const [transactions, {refetch}] = createResource(
         () => venueId() && slots().length > 0,
         async () => {
             const currentSlots = slots();
@@ -148,23 +148,25 @@ export default function Host() {
 
         if (!host()) throw new Error("Host not found");
 
+        const form: TransactionFormData = {
+            productId: slot.productId,
+            userId: host()?.ownerId,
+            quantity: quantity,
+            reservedTimeStart: slot.start,
+            reservedTimeEnd: slot.end,
+            status: 'PENDING'
+        }
+
         try {
-            const form: TransactionFormData = {
-                productId: slot.productId,
-                userId: host()?.ownerId,
-                quantity: quantity,
-                reservedTimeStart: slot.start,
-                reservedTimeEnd: slot.end
-            }
-            const transaction = await createNewTransaction(form);
+            const newTransaction = await createNewTransaction(form);
 
             alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
+            refetch();
         } catch (err) {
             console.error(err);
             alert("Failed to start checkout.");
         }
     };
-
 
     return (
         <main>
