@@ -4,13 +4,14 @@ import { createEffect, createResource, createSignal, For, Show, createMemo } fro
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
-import { createNewTransaction, createPaymongoCheckout, getTransactionsForDay } from "~/lib/transaction";
+import { getTransactionsForDay } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
 import CourtCard from "~/components/court_card/CourtCard";
 import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
+import { createPaymongoCheckout } from "~/lib/paymongo";
 
 export default function Host() {
     const params = useParams();

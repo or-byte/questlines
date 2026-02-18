@@ -5,15 +5,16 @@ import { ScheduleFormData } from "~/lib/schedule";
 async function main() {
     const user1 = await prisma.user.create({
         data: {
-            email: "arkclumacad@gmail.com",
-            fullName: "Ark Lumacad",
-            role: "CUSTOMER",
+            email: "cana_resort@gmail.com",
+            fullName: "Cana Resort",
+            role: "ADMIN",
         }
     })
 
     const host1 = await prisma.host.create({
         data: {
-            slug: "cana"
+            slug: "cana",
+            owner: { connect: { id: user1.id } }
         }
     })
 

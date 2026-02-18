@@ -1,5 +1,4 @@
 import prisma from "./prisma";
-import { Product } from "./products";
 
 export type TransactionFormData = {
     productId: number,
