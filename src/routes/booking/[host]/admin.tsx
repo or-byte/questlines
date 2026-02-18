@@ -12,7 +12,6 @@ import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import StatusPill from "~/components/pill/StatusPill";
-import { createPaymongoCheckout } from "~/lib/paymongo";
 
 export default function Host() {
     const params = useParams();
