@@ -1,22 +1,46 @@
+import { Title } from "@solidjs/meta";
 import { useParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js"
+import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
-import { getSchedules } from "~/lib/schedule";
+import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
 import { createNewTransaction, getTransactionsForDay } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
+import Carousel from "~/components/carousel/Carousel";
+import CourtCard from "~/components/court_card/CourtCard";
+import TimeSlot from "~/components/time_slot/TimeSlot";
+import BookingSummary from "~/components/summary/BookingSummary";
+import InfoPanel from "~/components/panel/InfoPanel";
 
 export default function Host() {
     const params = useParams();
+    const imageUrls = [
+        'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
+        'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
+    ]; //static
+    const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
+    const [isChangingVenue, setIsChangingVenue] = createSignal(false);
+    const [selectedSlot, setSelectedSlot] = createSignal<{
+        label: string;
+        start: Date;
+        end: Date;
+        productId: number;
+        productName: string;
+        productPrice: number;
+    } | null>(null);
 
     const [host] = createResource(params.host, getHostBySlug);
     const [venues] = createResource(() => host()?.id, getVenuesByHost);
-
     const [venueId, setVenueId] = createSignal<number>(0);
-
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
 
-    const handleSelectVenue = (id: number) => setVenueId(id);
+    const handleSelectVenue = (id: number) => {
+        if (venueId() === id) return;
+        setIsChangingVenue(true);
+        setVenueId(id);
+        setSelectedCourtId(id);
+        setSelectedSlot(null);
+    };
 
     const [allSchedules] = createResource(venueId, async (venueId) => {
         if (!venueId) return [];
@@ -32,95 +56,98 @@ export default function Host() {
             ...s,
             product: products.find(p => p.id === s.productId),
         }));
-    });
+    }, { initialValue: [] });
 
-    const buildSlotsFromSchedules = () => {
-        const result: {
-            label: string;
-            start: Date;
-            end: Date;
-            productId: number;
-            productName: string;
-            productPrice: number;
-        }[] = [];
+    const slots = createMemo<{
+        label: string;
+        start: Date;
+        end: Date;
+        productId: number;
+        productName: string;
+        productPrice: number;
+    }[]>((prev) => {
+        if (isChangingVenue()) {
+            return [];
+        }
 
-        const today = new Date();
+        if (allSchedules.loading) {
+            return prev || [];
+        }
 
-        if (!allSchedules()) return result;
+        if (!allSchedules()) return [];
+
+        const results : FormattedSchedule[] = [];
 
         allSchedules()!.forEach(schedule => {
-            const currentDay = today.getDay();
-            const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
-
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + diff);
-
-            const start = new Date(targetDate);
-            const end = new Date(targetDate);
-
-            start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
-            end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
-
-            const label = start.toLocaleString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-            }) + " - " +
-                end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-
-            result.push({
-                label,
-                start,
-                end,
-                productId: schedule.productId,
-                productName: schedule.product?.name || "Unknown",
-                productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
-            });
+            results.push(formatSchedules(schedule));
         });
 
-        return result;
-    };
+        return results;
+    }, []);
 
-    const [transactions] = createResource(()=> venueId() && allSchedules(), async (venueId) => {
-        if (!venueId || !allSchedules()) return [];
+    const [transactions] = createResource(
+        () => venueId() && slots().length > 0,
+        async () => {
+            const currentSlots = slots();
+            if (!currentSlots.length) return [];
 
-        const slots = buildSlotsFromSchedules();
+            const productIds = Array.from(new Set(currentSlots.map(s => s.productId)));
 
-        const productIds = Array.from(new Set(slots.map(s => s.productId)));
+            const txs = await Promise.all(productIds.map(async (productId) => {
+                const dayStart = new Date(currentSlots[0].start);
+                dayStart.setHours(0, 0, 0, 0);
 
-        const txs = await Promise.all(productIds.map(async (productId) => {
-            const dayStart = new Date(slots[0].start);
-            dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(currentSlots[0].start);
+                dayEnd.setHours(23, 59, 59, 999);
 
-            const dayEnd = new Date(slots[0].start);
-            dayEnd.setHours(23, 59, 59, 999);
+                return await getTransactionsForDay(productId, dayStart, dayEnd);
+            }));
 
-            const result = await getTransactionsForDay(productId, dayStart, dayEnd);
-            console.log(`Transactions for product ${productId}:`, result);
-            return result;
-        }));
+            return txs.flat();
+        },
+        { initialValue: [] }
+    );
 
-        return txs.flat();
+    createEffect(() => {
+        const currentSlots = slots();
+        const txs = transactions() || [];
+        const newAvailability: Record<string, boolean> = {};
+
+        currentSlots.forEach(slot => {
+            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
+            const isBooked = txs.some(tx => {
+                const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
+                const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
+                return slot.start < txEnd && slot.end > txStart;
+            });
+
+            newAvailability[key] = isBooked;
+        });
+
+        setAvailability(newAvailability);
+    });
+
+    createEffect(() => {
+        if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
+            setIsChangingVenue(false);
+        }
     });
 
     const handleBookNow = async (slot: { start: Date; end: Date; productId: number }) => {
-        const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60); // hours
+        const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
 
         try {
             const newTransaction = await createNewTransaction({
                 productId: slot.productId,
-                userId: 1, // hardcoded user
+                userId: 1,
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
             });
 
             alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
-
-            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-            setAvailability(prev => ({ ...prev, [key]: true }));
+            window.location.reload();
         } catch (err: any) {
             if (err.code === "23P01") {
                 alert("Sorry, this slot is already booked.");
@@ -131,82 +158,121 @@ export default function Host() {
         }
     };
 
-    createEffect(() => {
-        const slots = buildSlotsFromSchedules();
-        const txs = transactions() || [];
-        const newAvailability: Record<string, boolean> = {};
-
-        slots.forEach(slot => {
-            const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-
-            const isBooked = txs.some(tx => {
-                const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
-                const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
-                return slot.start < txEnd && slot.end > txStart;
-            });
-
-            console.log(`Slot ${slot.label} for product ${slot.productId} isBooked:`, isBooked);
-
-            newAvailability[key] = isBooked;
-        });
-
-        setAvailability(newAvailability);
-    });
-
     return (
-        <div>
-            <section>
-                <Show when={host()}>
-                    <h1>{host()?.slug}</h1>
-                    <h2>Venues</h2>
-                    <Show when={venues()}>
-                        <ol>
-                            <For each={venues()}>
-                                {(v) => (
-                                    <li>
-                                        <button onClick={[handleSelectVenue, v.id]}>
-                                            {v.slug} @ {v.address}
-                                        </button>
-                                    </li>
-                                )}
-                            </For>
-                        </ol>
-                    </Show>
-                </Show>
-            </section>
-
-            <section>
-                <Show when={buildSlotsFromSchedules()}>
-                    <h3> Upcoming Schedules for{" "}
-                        {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}</h3>
-                    <ul>
-                        <For each={buildSlotsFromSchedules()}>
-                            {(slot) => {
-                                const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-
-                                let endTime = new Date(slot.end);
-                                if (endTime <= slot.start) {
-                                    endTime.setDate(endTime.getDate() + 1);
-                                }
-
-                                const hours = (endTime.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
-                                const totalPrice = slot.productPrice * hours;
-
-                                return (
-                                    <li>
-                                        {slot.label} ({slot.productName}) - ₱{totalPrice.toFixed(2)}{" "}
-                                        {!availability()[key] ? (
-                                            <button onClick={() => handleBookNow(slot)}>Book now</button>
-                                        ) : (
-                                            <span>Booked!</span>
+        <main>
+            <Title>Booking</Title>
+            <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
+                <Show
+                    when={!host.loading && host()}
+                    fallback={
+                        <div class="flex justify-center items-center min-h-screen">
+                            <div class="spinner"></div>
+                        </div>
+                    }>
+                    <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
+                        {host()?.slug}
+                    </h1>
+                    <div class="mt-4 sm:mt-6 lg:mt-[20px]">
+                        <Carousel images={imageUrls} />
+                    </div>
+                    <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
+                        {/* Main content */}
+                        <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
+                            <Show when={venues()}>
+                                <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
+                                    <For each={venues()}>
+                                        {(v) => (
+                                            <CourtCard
+                                                title={v.slug}
+                                                thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
+                                                isSelected={selectedCourtId() === v.id}
+                                                onClick={[handleSelectVenue, v.id]}
+                                                status="open"
+                                            />
                                         )}
-                                    </li>
-                                )
-                            }}
-                        </For>
-                    </ul>
+                                    </For>
+                                </div>
+                            </Show>
+
+                            <div>
+                                <Show
+                                    when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
+                                    fallback={
+                                        <div class="flex justify-center py-12">
+                                            <div class="spinner"></div>
+                                        </div>
+                                    }
+                                >
+                                    <Show when={slots().length}>
+                                        <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
+                                            Upcoming Schedules for{" "}
+                                            {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
+                                        </h2>
+                                        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
+                                            <For each={slots()}>
+                                                {(slot) => {
+                                                    const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
+                                                    return (
+                                                        <TimeSlot
+                                                            time={slot.label}
+                                                            price={slot.productPrice.toFixed(2)}
+                                                            isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
+                                                                && selectedSlot()?.productId === slot.productId}
+                                                            isAvailable={!availability()[key]}
+                                                            onClick={[setSelectedSlot, slot]}
+                                                        />
+                                                    );
+                                                }}
+                                            </For>
+                                        </ul>
+                                    </Show>
+                                </Show>
+
+                                <Show when={selectedSlot()}>
+                                    {(slot) => {
+                                        const hours =
+                                            (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
+                                        const totalPrice = slot().productPrice * hours;
+                                        
+                                        return (
+                                            <>
+                                                <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
+                                                <BookingSummary
+                                                    rows={[
+                                                        { label: 'Schedule', value: slot().label },
+                                                        { label: 'Price per hour', value: `₱${slot().productPrice.toFixed(2)}` },
+                                                    ]}
+                                                    total={totalPrice.toFixed(2).toString()}
+                                                    onBook={() => handleBookNow(slot())}
+                                                />
+                                            </>
+                                        );
+                                    }}
+                                </Show>
+                            </div>
+                        </div>
+
+                        {/* Sidebar */}
+                        <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
+                            <div class="flex justify-between w-full items-center">
+                                <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">Operating Hours</h3>
+                            </div>
+                            <div class="flex justify-between pl-4 sm:pl-6 lg:pl-[30px]">
+                                <p class="body-2 text-sm sm:text-base">Mon - Fri</p>
+                                <p class="body-2 text-sm sm:text-base">6:00 AM - 12:00 AM</p>
+                            </div>
+                            <InfoPanel
+                                email="sampleemail@gmail.com"
+                                address="Address, address, address"
+                                contact="+63 991 123 4561"
+                                facilities={["Facility1", "Facility2"]}
+                                rules={["rule1", "rule1"]}
+                            />
+                        </aside>
+                    </div>
                 </Show>
-            </section>
-        </div >
+            </div>
+        </main>
     )
 }
