@@ -67,7 +67,6 @@ async function main() {
         }
     }
 
-
     for (const schedule of schedules) {
         await prisma.schedule.create({
             data: schedule

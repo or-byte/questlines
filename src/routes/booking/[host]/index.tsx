@@ -4,7 +4,7 @@ import { createEffect, createResource, createSignal, For, Show, createMemo } fro
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
-import { getTransactionsForDay } from "~/lib/transaction";
+import { createNewTransaction, getTransactionsForDay } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
 import CourtCard from "~/components/court_card/CourtCard";
@@ -145,14 +145,28 @@ export default function Host() {
             productPrice: number;
         }) => {
         try {
+            const transaction = await createNewTransaction({
+                productId: slot.productId,
+                userId: 1, // TODO: replace with actual user ID from auth
+                quantity,
+                reservedTimeStart: slot.start,
+                reservedTimeEnd: slot.end,
+                status: "PENDING"
+            });
+
+            if (!transaction?.id) throw new Error("Failed to create transaction: ");
+            alert("transaction created with ID: " + transaction.id);
+
             const checkoutUrl = await createPaymongoCheckout(
                 quantity,
+                transaction.id,
                 {
                     productId: slot.productId,
                     start: slot.start,
                     end: slot.end,
                     productName: slot.productName,
                     productPrice: slot.productPrice,
+                    
                 }
             );
 
@@ -160,7 +174,7 @@ export default function Host() {
 
         } catch (err) {
             console.error(err);
-            alert("Failed to start checkout.");
+            alert("Failed to start checkout");
         }
     };
 

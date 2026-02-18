@@ -153,13 +153,13 @@ export default function Host() {
             quantity: quantity,
             reservedTimeStart: slot.start,
             reservedTimeEnd: slot.end,
-            status: 'PENDING'
+            status: 'PAID'
         }
 
         try {
             const newTransaction = await createNewTransaction(form);
 
-            alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
+            alert(`Booked successfully! Transaction ID: ${newTransaction.id}`);
             refetch();
         } catch (err) {
             console.error(err);

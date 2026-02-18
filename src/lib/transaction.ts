@@ -16,7 +16,7 @@ export const createNewTransaction = async (form: TransactionFormData) => {
     const start = new Date(reservedTimeStart);
     const end = new Date(reservedTimeEnd);
 
-    return await prisma.$queryRaw`
+    const result = await prisma.$queryRaw`
             INSERT INTO "Transaction" 
                 ("productId", "userId", "quantity", "reservedTime", "status")
             VALUES
@@ -35,6 +35,7 @@ export const createNewTransaction = async (form: TransactionFormData) => {
                 "reservedTime"::text,
                 "status"
         `
+    return result[0];
 }
 
 export const updateTransactionStatus = async (id: number, status: string) => {
@@ -62,5 +63,6 @@ export const getTransactionsForDay = async (productId: number, dayStart: Date, d
             FROM "Transaction"
             WHERE "productId" = ${productId}
                 AND "reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
+                AND "status" = 'PAID'
         `;
 }

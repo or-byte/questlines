@@ -92,13 +92,6 @@ ALTER TABLE "Schedule" ADD CONSTRAINT "Schedule_productId_fkey" FOREIGN KEY ("pr
 -- No Overlap Constraints
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-ALTER TABLE "Transaction"
-ADD CONSTRAINT "transaction_no_overlap"
-EXCLUDE USING gist (
-  "productId" WITH =,
-  "reservedTime" WITH &&
-);
-
 ALTER TABLE "Schedule"
 ADD CONSTRAINT no_overlapping_hours
 EXCLUDE USING GIST (

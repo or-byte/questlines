@@ -1,7 +1,6 @@
-import crypto from "crypto";
-
 export async function createPaymongoCheckout(
     quantity: number,
+    transactionId: number,
     data: {
         productId: number;
         start: Date;
@@ -20,25 +19,23 @@ export async function createPaymongoCheckout(
         body: JSON.stringify({
             data: {
                 attributes: {
+                    payment_method_types: ["qrph", "gcash", "paymaya", "card"],
                     line_items: [
                         {
-                            currency: "PHP",
-                            amount: data.productPrice * 100,
                             name: data.productName,
-                            quantity: quantity,
+                            amount: data.productPrice * 100,
+                            currency: "PHP",
+                            quantity,
                         },
                     ],
-                    payment_method_types: ["gcash", "card"],
                     success_url: `${process.env.ORIGIN}/success`,
                     cancel_url: `${process.env.ORIGIN}/cancel`,
                     metadata: {
-                        productId: data.productId,
-                        start: data.start.toISOString(),
-                        end: data.end.toISOString(),
+                        transactionId: transactionId.toString()
                     },
                 },
             },
-        }),
+        })
     });
 
     const json = await response.json();
