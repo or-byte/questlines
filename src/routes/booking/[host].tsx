@@ -144,6 +144,7 @@ export default function Host() {
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
+                status: 'PENDING'
             });
 
             alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
