@@ -13,16 +13,17 @@
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.15.0",
     "@solidjs/start": "^1.1.0",
+    "date-time-picker-solid": "^1.1.2",
     "solid-icons": "^1.2.0",
     "solid-js": "^1.9.5",
     "vinxi": "^0.5.7"
   },
   "devDependencies": {
-    "prisma": "^6.19.2",
-    "tsx": "^4.21.0",
     "@tailwindcss/postcss": "^4.1.18",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18"
+    "prisma": "^6.19.2",
+    "tailwindcss": "^4.1.18",
+    "tsx": "^4.21.0"
   },
   "engines": {
     "node": ">=22"
