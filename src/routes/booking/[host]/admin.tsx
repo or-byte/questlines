@@ -192,8 +192,8 @@ export default function Host() {
         if (!id) return;
 
         try {
-            await updateTransactionStatus(id, "CANCELLED"); // must match your enum
-            await refetch(); // refresh transactions
+            await updateTransactionStatus(id, "CANCELLED");
+            window.location.reload();
         } catch (err) {
             console.error("Failed to update transaction", err);
         }
