@@ -10,7 +10,7 @@ export async function createPaymongoCheckout(
     }) {
     "use server";
 
-    const response = await fetch("https://api.paymongo.com/v1/checkout_sessions", {
+    const response = await fetch(process.env.PAYMONGO_CHECKOUT_SESSION_URI!, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
