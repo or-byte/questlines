@@ -4,14 +4,13 @@ import { createEffect, createResource, createSignal, For, Show, createMemo } fro
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
-import { createNewTransaction, getTransactionsForDay, updateTransactionStatus } from "~/lib/transaction";
+import { createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
 import CourtCard from "~/components/court_card/CourtCard";
 import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
-import { createPaymongoCheckout } from "~/lib/paymongo";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
 
@@ -43,6 +42,14 @@ export default function Host() {
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
     const [isOpen, setIsOpen] = createSignal(false);
     const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
+    const [slotsForDay, setSlotsForDay] = createSignal<{
+        label: string;
+        start: Date;
+        end: Date;
+        productId: number;
+        productName: string;
+        productPrice: number;
+    }[]>([]);
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
         setIsChangingVenue(true);
@@ -78,29 +85,19 @@ export default function Host() {
         productId: number;
         productName: string;
         productPrice: number;
+        transactionId?: number;
     }[]>((prev) => {
-        if (isChangingVenue()) {
-            return [];
-        }
-
+        if (isChangingVenue()) return [];
         if (allSchedules.loading) {
             return prev || [];
         }
 
-        if (!allSchedules()) return [];
+        const schedules = allSchedules();
 
-        const date = selectedDate();
-        const results: FormattedSchedule[] = [];
+        if (!schedules?.length) return [];
 
-        allSchedules()!.forEach(schedule => {
-            const formatted = formatSchedules(schedule);
-            if (formatted.start.toDateString() === date.toDateString()) {
-                results.push(formatted)
-            }
-        });
-
-        return results;
-    }, []);
+        return schedules.map(schedule => formatSchedules(schedule));
+    });
 
 
     const [transactions, { refetch }] = createResource(
@@ -131,6 +128,17 @@ export default function Host() {
         const currentSlots = slots();
         const txs = transactions() || [];
         const newAvailability: Record<string, boolean> = {};
+        const date = selectedDate();
+        const timeSlots = [];
+
+        allSchedules().map((schedule) => {
+            const formatted = formatSchedules(schedule);
+            if (formatted.start.toDateString() === date.toDateString()) {
+                timeSlots.push(formatted)
+            }
+        });
+
+        setSlotsForDay(timeSlots);
 
         currentSlots.forEach(slot => {
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
@@ -181,7 +189,6 @@ export default function Host() {
             refetch();
         } catch (err) {
             console.error(err);
-            alert("Failed to start checkout.");
         }
     };
 
@@ -192,11 +199,14 @@ export default function Host() {
 
     const handleDelete = async () => {
         const id = transactionToDelete();
+        console.log("id", id);
+        
         if (!id) return;
 
         try {
-            await updateTransactionStatus(id, "CANCELLED");
-            window.location.reload();
+            const res = await updateTransactionStatus(id, "CANCELLED");
+            console.log(res);
+            
         } catch (err) {
             console.error("Failed to update transaction", err);
         }
@@ -210,8 +220,8 @@ export default function Host() {
             setSelectedDate(date.currentDate);
             setSelectedSlot(null);
         }
-
     }
+
     return (
         <main>
             <Title>Booking</Title>
@@ -272,10 +282,10 @@ export default function Host() {
                                             {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
                                         </h2>
                                         <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
-                                            <For each={slots()}>
+                                            <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-
+                                                    
                                                     return (
                                                         <TimeSlot
                                                             time={slot.label}

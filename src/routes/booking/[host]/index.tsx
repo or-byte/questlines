@@ -28,6 +28,14 @@ export default function Host() {
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
+    const [slotsForDay, setSlotsForDay] = createSignal<{
+        label: string;
+        start: Date;
+        end: Date;
+        productId: number;
+        productName: string;
+        productPrice: number;
+    }[]>([]);
     const [selectedSlot, setSelectedSlot] = createSignal<{
         label: string;
         start: Date;
@@ -78,30 +86,19 @@ export default function Host() {
         productName: string;
         productPrice: number;
     }[]>((prev) => {
-        if (isChangingVenue()) {
-            return [];
-        }
-
+        if (isChangingVenue()) return [];
         if (allSchedules.loading) {
             return prev || [];
         }
 
-        if (!allSchedules()) return [];
+        const schedules = allSchedules();
 
-        const date = selectedDate();
-        const results: FormattedSchedule[] = [];
+        if (!schedules?.length) return [];
 
-        allSchedules()!.forEach(schedule => {
-            const formatted = formatSchedules(schedule);
-            if (formatted.start.toDateString() === date.toDateString()) {
-                results.push(formatted)
-            }
-        });
+        return schedules.map(schedule => formatSchedules(schedule));
+    });
 
-        return results;
-    }, []);
-
-    const [transactions] = createResource(
+    const [transactions, { refetch }] = createResource(
         () => venueId() && slots().length > 0,
         async () => {
             const currentSlots = slots();
@@ -120,9 +117,6 @@ export default function Host() {
                 return await getTransactionsForDay(productId, dayStart, dayEnd);
             }));
 
-            console.log("product ids for current slots:", productIds);
-            console.log("Transactions for current slots:", txs);
-
             return txs.flat();
         },
         { initialValue: [] }
@@ -132,6 +126,17 @@ export default function Host() {
         const currentSlots = slots();
         const txs = transactions() || [];
         const newAvailability: Record<string, boolean> = {};
+        const date = selectedDate();
+        const timeSlots = [];
+
+        allSchedules().map((schedule) => {
+            const formatted = formatSchedules(schedule);
+            if (formatted.start.toDateString() === date.toDateString()) {
+                timeSlots.push(formatted)
+            }
+        });
+
+        setSlotsForDay(timeSlots);
 
         currentSlots.forEach(slot => {
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
@@ -201,6 +206,7 @@ export default function Host() {
         if (date) {
             setSelectedDate(date.currentDate);
             setSelectedSlot(null);
+            refetch();
         }
     }
 
@@ -264,7 +270,7 @@ export default function Host() {
                                             {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
                                         </h2>
                                         <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
-                                            <For each={slots()}>
+                                            <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
@@ -276,6 +282,7 @@ export default function Host() {
                                                                 && selectedSlot()?.productId === slot.productId}
                                                             isAvailable={!availability()[key]}
                                                             onClick={[setSelectedSlot, slot]}
+                                                            isAdmin={false}
                                                         />
                                                     );
                                                 }}
