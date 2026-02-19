@@ -4,24 +4,17 @@ import prisma from "~/lib/prisma";
 const WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET!.trim();
 
 export async function POST({ request }: { request: Request }) {
-    try {
-        const rawBody = await request.text(); // must be raw
+  const rawBody = await request.text();
+  // const signature = request.headers.get("paymongo-signature") ?? "";
 
-        // For testing purposes, we will skip signature verification for now. In production, you should verify the signature to ensure the webhook is from PayMongo.
-        // const signature = request.headers.get("paymongo-signature") ?? "";
+  // const expectedSignature = crypto
+  //   .createHmac("sha256", process.env.PAYMONGO_WEBHOOK_SECRET!)
+  //   .update(rawBody)
+  //   .digest("hex");
 
-        // const expectedSignature = crypto
-        //   .createHmac("sha256", WEBHOOK_SECRET)
-        //   .update(rawBody)
-        //   .digest("hex");
-
-        // if (signature !== expectedSignature) {
-        //   console.warn("Invalid webhook signature");
-        //   console.log("Received signature:", signature);
-        //   console.log("Expected signature:", expectedSignature);
-        //   console.log("Raw body:", rawBody);
-        //   return new Response("Invalid signature", { status: 400 });
-        // }
+  // if (signature !== expectedSignature) {
+  //   return new Response("Invalid signature", { status: 400 });
+  // }
 
         const event = JSON.parse(rawBody);
         const session = event.data.attributes.data.attributes;

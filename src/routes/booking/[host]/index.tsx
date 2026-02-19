@@ -18,6 +18,12 @@ const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
     { fallback: <div>Loading date picker...</div> }
 );
+import { clientOnly } from "@solidjs/start";
+
+const DateTimePickerClient = clientOnly(
+    () => import("~/components/datetimepicker/DateTimePickerClient"),
+    { fallback: <div>Loading date picker...</div> }
+);
 
 export default function Host() {
     const params = useParams();
@@ -62,14 +68,30 @@ export default function Host() {
         () => ({ venueId: venueId(), date: selectedDate() }),
         async ({ venueId, date }) => {
             if (!venueId) return [];
+    const [allSchedules] = createResource(
+        () => ({ venueId: venueId(), date: selectedDate() }),
+        async ({ venueId, date }) => {
+            if (!venueId) return [];
 
+            const products = await getProductsByVenueId(venueId);
+            if (!products.length) return [];
             const products = await getProductsByVenueId(venueId);
             if (!products.length) return [];
 
             const schedules = await Promise.all(
                 products.map(p => getSchedules(p.id))
             );
+            const schedules = await Promise.all(
+                products.map(p => getSchedules(p.id))
+            );
 
+            return schedules.flat().map(s => ({
+                ...s,
+                product: products.find(p => p.id === s.productId),
+            }));
+        },
+        { initialValue: [] }
+    );
             return schedules.flat().map(s => ({
                 ...s,
                 product: products.find(p => p.id === s.productId),
@@ -108,14 +130,20 @@ export default function Host() {
 
             const txs = await Promise.all(productIds.map(async (productId) => {
                 const dayStart = new Date();
+                const dayStart = new Date();
                 dayStart.setHours(0, 0, 0, 0);
 
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayStart.getDate() + 7);
                 const dayEnd = new Date(dayStart);
                 dayEnd.setDate(dayStart.getDate() + 7);
                 dayEnd.setHours(23, 59, 59, 999);
 
                 return await getTransactionsForDay(productId, dayStart, dayEnd);
             }));
+
+            console.log("transactions: ", txs);
+
 
             return txs.flat();
         },
@@ -243,6 +271,15 @@ export default function Host() {
                                             />
                                         )}
                                     </For>
+                                </div>
+                            </Show>
+                            <Show when={selectedCourtId() !== 0}>
+                                <div class="flex justify-center w-full">
+                                    <DateTimePickerClient
+                                        key={venueId()}
+                                        value={selectedDate()}
+                                        calendarResponse={onChangeDay}
+                                    />
                                 </div>
                             </Show>
                             <Show when={selectedCourtId() !== 0}>

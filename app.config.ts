@@ -6,8 +6,8 @@ export default defineConfig({
       host: true,
       strictPort: false,
       allowedHosts: [
-        "precosmic-gymnospermal-milagro.ngrok-free.dev",
-        "localhost",
+        process.env.NGROK_HOST || "",
+        "localhost"
       ],
     },
   },

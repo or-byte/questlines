@@ -18,6 +18,10 @@ const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
     { fallback: <div>Loading date picker...</div> }
 );
+const DateTimePickerClient = clientOnly(
+    () => import("~/components/datetimepicker/DateTimePickerClient"),
+    { fallback: <div>Loading date picker...</div> }
+);
 export default function Host() {
     const params = useParams();
     const imageUrls = [
@@ -25,6 +29,7 @@ export default function Host() {
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
     ]; //static
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
+    const [transactionToDelete, setTransactionToDelete] = createSignal<number | null>(null);
     const [transactionToDelete, setTransactionToDelete] = createSignal<number | null>(null);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedSlot, setSelectedSlot] = createSignal<{
@@ -62,14 +67,30 @@ export default function Host() {
         () => ({ venueId: venueId(), date: selectedDate() }),
         async ({ venueId, date }) => {
             if (!venueId) return [];
+    const [allSchedules] = createResource(
+        () => ({ venueId: venueId(), date: selectedDate() }),
+        async ({ venueId, date }) => {
+            if (!venueId) return [];
 
+            const products = await getProductsByVenueId(venueId);
+            if (!products.length) return [];
             const products = await getProductsByVenueId(venueId);
             if (!products.length) return [];
 
             const schedules = await Promise.all(
                 products.map(p => getSchedules(p.id))
             );
+            const schedules = await Promise.all(
+                products.map(p => getSchedules(p.id))
+            );
 
+            return schedules.flat().map(s => ({
+                ...s,
+                product: products.find(p => p.id === s.productId),
+            }));
+        },
+        { initialValue: [] }
+    );
             return schedules.flat().map(s => ({
                 ...s,
                 product: products.find(p => p.id === s.productId),
@@ -252,9 +273,19 @@ export default function Host() {
                                                 isSelected={selectedCourtId() === v.id}
                                                 onClick={[handleSelectVenue, v.id]}
                                                 status="open"
+                                                status="open"
                                             />
                                         )}
                                     </For>
+                                </div>
+                            </Show>
+                            <Show when={selectedCourtId() !== 0}>
+                                <div class="flex justify-center w-full">
+                                    <DateTimePickerClient
+                                        key={venueId()}
+                                        value={selectedDate()}
+                                        calendarResponse={onChangeDay}
+                                    />
                                 </div>
                             </Show>
                             <Show when={selectedCourtId() !== 0}>
@@ -294,6 +325,8 @@ export default function Host() {
                                                                 && selectedSlot()?.productId === slot.productId}
                                                             isAvailable={!availability()[key]}
                                                             onClick={[setSelectedSlot, slot]}
+                                                            isAdmin={true}
+                                                            onDelete={() => onClickDelete(slot.productId)}
                                                             isAdmin={true}
                                                             onDelete={() => onClickDelete(slot.productId)}
                                                         />
@@ -346,6 +379,15 @@ export default function Host() {
                             />
                         </aside>
                     </div>
+                    <ConfirmationModal
+                        isOpen={isOpen()}
+                        title="Delete Item?"
+                        message="Are you sure you want to delete this item? This action cannot be undone."
+                        confirmText="Yes, Delete"
+                        cancelText="Cancel"
+                        onConfirm={handleDelete}
+                        onCancel={() => setIsOpen(false)}
+                    />
                     <ConfirmationModal
                         isOpen={isOpen()}
                         title="Delete Item?"
