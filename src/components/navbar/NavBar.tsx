@@ -29,7 +29,8 @@ export default function NavBar() {
                                     cursor-pointer
                                     transition-colors duration-200
                                     text-[var(--color-text-1)]
-                                    hover:text-[var(--color-accent-3)]/70">
+                                    hover:text-[var(--color-accent-3)]/70
+                                    navbar">
                                 {item.label}
                             </A>}
                     </For>
