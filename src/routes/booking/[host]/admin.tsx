@@ -50,6 +50,7 @@ export default function Host() {
         productId: number;
         productName: string;
         productPrice: number;
+        transactionId?: number;
     }[]>([]);
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
@@ -126,22 +127,33 @@ export default function Host() {
     );
 
     createEffect(() => {
-        const currentSlots = slots();
         const txs = transactions() || [];
-        const newAvailability: Record<string, boolean> = {};
         const date = selectedDate();
-        const timeSlots = [];
+        const newAvailability: Record<string, boolean> = {};
 
-        allSchedules().map((schedule) => {
-            const formatted = formatSchedules(schedule);
-            if (formatted.start.toDateString() === date.toDateString()) {
-                timeSlots.push(formatted)
-            }
-        });
+        const timeSlots = allSchedules()
+            .map(schedule => formatSchedules(schedule))
+            .filter(formatted =>
+                formatted.start.toDateString() === date.toDateString()
+            )
+            .map(formatted => {
+                const matchedTx = txs.find(tx => {
+                    const [startRaw, endRaw] = tx.reservedTime.split(",");
+                    const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
+                    const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+
+                    return formatted.start < txEnd && formatted.end > txStart;
+                });
+
+                return {
+                    ...formatted,
+                    transactionId: matchedTx?.id
+                };
+            });
 
         setSlotsForDay(timeSlots);
 
-        currentSlots.forEach(slot => {
+        timeSlots.forEach(slot => {
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
             const isBooked = txs.some(tx => {
@@ -154,9 +166,7 @@ export default function Host() {
         });
 
         setAvailability(newAvailability);
-    });
 
-    createEffect(() => {
         if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
             setIsChangingVenue(false);
         }
@@ -200,20 +210,18 @@ export default function Host() {
 
     const handleDelete = async () => {
         const id = transactionToDelete();
-        console.log("id", id);
 
         if (!id) return;
 
         try {
-            const res = await updateTransactionStatus(id, "CANCELLED");
-            console.log(res);
-
+            await updateTransactionStatus(id, "CANCELLED");
         } catch (err) {
             console.error("Failed to update transaction", err);
         }
 
         setIsOpen(false);
         setTransactionToDelete(null);
+        refetch();
     }
 
     const onChangeDay = (date: any) => {
@@ -295,7 +303,7 @@ export default function Host() {
                                                             isAvailable={!availability()[key]}
                                                             onClick={[setSelectedSlot, slot]}
                                                             isAdmin={true}
-                                                            onDelete={() => onClickDelete(slot.productId)}
+                                                            onDelete={() => onClickDelete(slot.transactionId)}
                                                         />
                                                     );
                                                 }}

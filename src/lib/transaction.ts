@@ -1,3 +1,4 @@
+import { TransactionStatus } from "@prisma/client";
 import prisma from "./prisma";
 
 export type TransactionFormData = {
@@ -38,28 +39,20 @@ export const createNewTransaction = async (form: TransactionFormData) => {
     return result[0];
 }
 
-export const updateTransactionStatus = async (id: number, status: string) => {
+export const updateTransactionStatus = async (id: number, status: TransactionStatus) => {
     "use server";
 
-    return await prisma.$queryRaw`
-            UPDATE "Transaction"
-            SET "status" = ${status}::"TransactionStatus"
-            WHERE "id" = ${id}
-            RETURNING 
-                "id",
-                "productId",
-                "userId",
-                "quantity",
-                "reservedTime"::text,
-                "status"
-        `;
+    return await prisma.transaction.updateMany({
+        where: { id },
+        data: { status: status }
+    });
 }
 
 export const getTransactionsForDay = async (productId: number, dayStart: Date, dayEnd: Date) => {
     "use server"
 
-    return await prisma.$queryRaw<{ reservedTime: string }[]>`
-            SELECT "reservedTime"::text
+    return await prisma.$queryRaw<{ id: number, reservedTime: string }[]>`
+            SELECT "id","reservedTime"::text
             FROM "Transaction"
             WHERE "productId" = ${productId}
                 AND "reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
