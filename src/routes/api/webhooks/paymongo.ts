@@ -4,16 +4,16 @@ import prisma from "~/lib/prisma";
 
 export async function POST({ request }: { request: Request }) {
   const rawBody = await request.text();
-  const signature = request.headers.get("paymongo-signature") ?? "";
+  // const signature = request.headers.get("paymongo-signature") ?? "";
 
-  const expectedSignature = crypto
-    .createHmac("sha256", process.env.PAYMONGO_WEBHOOK_SECRET!)
-    .update(rawBody)
-    .digest("hex");
+  // const expectedSignature = crypto
+  //   .createHmac("sha256", process.env.PAYMONGO_WEBHOOK_SECRET!)
+  //   .update(rawBody)
+  //   .digest("hex");
 
-  if (signature !== expectedSignature) {
-    return new Response("Invalid signature", { status: 400 });
-  }
+  // if (signature !== expectedSignature) {
+  //   return new Response("Invalid signature", { status: 400 });
+  // }
 
   const event = JSON.parse(rawBody);
 

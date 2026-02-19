@@ -4,7 +4,7 @@ import { createEffect, createResource, createSignal, For, Show, createMemo } fro
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
-import { createNewTransaction, getTransactionsForDay, TransactionFormData } from "~/lib/transaction";
+import { createNewTransaction, getTransactionsForDay, updateTransactionStatus } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
 import CourtCard from "~/components/court_card/CourtCard";
@@ -26,6 +26,7 @@ export default function Host() {
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
     ]; //static
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
+    const [transactionToDelete, setTransactionToDelete] = createSignal<number | null>(null);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedSlot, setSelectedSlot] = createSignal<{
         label: string;
@@ -98,9 +99,6 @@ export default function Host() {
             }
         });
 
-        console.log(results);
-
-
         return results;
     }, []);
 
@@ -108,17 +106,17 @@ export default function Host() {
     const [transactions, { refetch }] = createResource(
         () => venueId() && slots().length > 0,
         async () => {
-            const date = selectedDate()!;
             const currentSlots = slots();
             if (!currentSlots.length) return [];
 
             const productIds = Array.from(new Set(currentSlots.map(s => s.productId)));
 
             const txs = await Promise.all(productIds.map(async (productId) => {
-                const dayStart = new Date(date);
+                const dayStart = new Date;
                 dayStart.setHours(0, 0, 0, 0);
 
-                const dayEnd = new Date(date);
+                const dayEnd = new Date;
+                dayEnd.setDate(dayStart.getDate() + 7);
                 dayEnd.setHours(23, 59, 59, 999);
 
                 return await getTransactionsForDay(productId, dayStart, dayEnd);
@@ -184,8 +182,24 @@ export default function Host() {
         }
     };
 
-    const handleDelete = () => {
+    const onClickDelete = (id: any) => {
+        setTransactionToDelete(id);
+        setIsOpen(true)
+    }
+
+    const handleDelete = async () => {
+        const id = transactionToDelete();
+        if (!id) return;
+
+        try {
+            await updateTransactionStatus(id, "CANCELLED"); // must match your enum
+            await refetch(); // refresh transactions
+        } catch (err) {
+            console.error("Failed to update transaction", err);
+        }
+
         setIsOpen(false);
+        setTransactionToDelete(null);
     }
 
     const onChangeDay = (date: any) => {
@@ -268,7 +282,7 @@ export default function Host() {
                                                             isAvailable={!availability()[key]}
                                                             onClick={[setSelectedSlot, slot]}
                                                             isAdmin={true}
-                                                            onDelete={() => setIsOpen(true)}
+                                                            onDelete={() => onClickDelete(slot.productId)}
                                                         />
                                                     );
                                                 }}
