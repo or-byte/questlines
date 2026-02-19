@@ -285,7 +285,6 @@ export default function Host() {
                                             <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                                                    
                                                     return (
                                                         <TimeSlot
                                                             time={slot.label}
