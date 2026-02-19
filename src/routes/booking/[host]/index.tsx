@@ -12,6 +12,12 @@ import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import { createPaymongoCheckout } from "~/lib/paymongo";
+import { clientOnly } from "@solidjs/start";
+
+const DateTimePickerClient = clientOnly(
+    () => import("~/components/datetimepicker/DateTimePickerClient"),
+    { fallback: <div>Loading date picker...</div> }
+);
 
 export default function Host() {
     const params = useParams();
@@ -21,6 +27,7 @@ export default function Host() {
     ]; //static
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
+    const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
     const [selectedSlot, setSelectedSlot] = createSignal<{
         label: string;
         start: Date;
@@ -43,21 +50,25 @@ export default function Host() {
         setSelectedSlot(null);
     };
 
-    const [allSchedules] = createResource(venueId, async (venueId) => {
-        if (!venueId) return [];
+    const [allSchedules] = createResource(
+        () => ({ venueId: venueId(), date: selectedDate() }),
+        async ({ venueId, date }) => {
+            if (!venueId) return [];
 
-        const products = await getProductsByVenueId(venueId);
-        if (!products.length) return [];
+            const products = await getProductsByVenueId(venueId);
+            if (!products.length) return [];
 
-        const schedules = await Promise.all(
-            products.map(p => getSchedules(p.id))
-        );
+            const schedules = await Promise.all(
+                products.map(p => getSchedules(p.id))
+            );
 
-        return schedules.flat().map(s => ({
-            ...s,
-            product: products.find(p => p.id === s.productId),
-        }));
-    }, { initialValue: [] });
+            return schedules.flat().map(s => ({
+                ...s,
+                product: products.find(p => p.id === s.productId),
+            }));
+        },
+        { initialValue: [] }
+    );
 
     const slots = createMemo<{
         label: string;
@@ -77,10 +88,14 @@ export default function Host() {
 
         if (!allSchedules()) return [];
 
+        const date = selectedDate();
         const results: FormattedSchedule[] = [];
 
         allSchedules()!.forEach(schedule => {
-            results.push(formatSchedules(schedule));
+            const formatted = formatSchedules(schedule);
+            if (formatted.start.toDateString() === date.toDateString()) {
+                results.push(formatted)
+            }
         });
 
         return results;
@@ -164,6 +179,13 @@ export default function Host() {
         }
     };
 
+    const onChangeDay = (date: any) => {
+        if (date) {
+            setSelectedDate(date.currentDate);
+            setSelectedSlot(null);
+        }
+    }
+
     return (
         <main>
             <Title>Booking</Title>
@@ -197,6 +219,15 @@ export default function Host() {
                                             />
                                         )}
                                     </For>
+                                </div>
+                            </Show>
+                            <Show when={selectedCourtId() !== 0}>
+                                <div class="flex justify-center w-full">
+                                    <DateTimePickerClient
+                                        key={venueId()}
+                                        value={selectedDate()}
+                                        calendarResponse={onChangeDay}
+                                    />
                                 </div>
                             </Show>
 

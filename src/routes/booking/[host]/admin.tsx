@@ -11,8 +11,14 @@ import CourtCard from "~/components/court_card/CourtCard";
 import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
-import StatusPill from "~/components/pill/StatusPill";
+import { createPaymongoCheckout } from "~/lib/paymongo";
+import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
+import { clientOnly } from "@solidjs/start";
 
+const DateTimePickerClient = clientOnly(
+    () => import("~/components/datetimepicker/DateTimePickerClient"),
+    { fallback: <div>Loading date picker...</div> }
+);
 export default function Host() {
     const params = useParams();
     const imageUrls = [
@@ -34,7 +40,8 @@ export default function Host() {
     const [venues] = createResource(() => host()?.id, getVenuesByHost);
     const [venueId, setVenueId] = createSignal<number>(0);
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
-
+    const [isOpen, setIsOpen] = createSignal(false);
+    const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
         setIsChangingVenue(true);
@@ -43,21 +50,25 @@ export default function Host() {
         setSelectedSlot(null);
     };
 
-    const [allSchedules] = createResource(venueId, async (venueId) => {
-        if (!venueId) return [];
+    const [allSchedules] = createResource(
+        () => ({ venueId: venueId(), date: selectedDate() }),
+        async ({ venueId, date }) => {
+            if (!venueId) return [];
 
-        const products = await getProductsByVenueId(venueId);
-        if (!products.length) return [];
+            const products = await getProductsByVenueId(venueId);
+            if (!products.length) return [];
 
-        const schedules = await Promise.all(
-            products.map(p => getSchedules(p.id))
-        );
+            const schedules = await Promise.all(
+                products.map(p => getSchedules(p.id))
+            );
 
-        return schedules.flat().map(s => ({
-            ...s,
-            product: products.find(p => p.id === s.productId),
-        }));
-    }, { initialValue: [] });
+            return schedules.flat().map(s => ({
+                ...s,
+                product: products.find(p => p.id === s.productId),
+            }));
+        },
+        { initialValue: [] }
+    );
 
     const slots = createMemo<{
         label: string;
@@ -77,28 +88,37 @@ export default function Host() {
 
         if (!allSchedules()) return [];
 
+        const date = selectedDate();
         const results: FormattedSchedule[] = [];
 
         allSchedules()!.forEach(schedule => {
-            results.push(formatSchedules(schedule));
+            const formatted = formatSchedules(schedule);
+            if (formatted.start.toDateString() === date.toDateString()) {
+                results.push(formatted)
+            }
         });
+
+        console.log(results);
+
 
         return results;
     }, []);
 
-    const [transactions, {refetch}] = createResource(
+
+    const [transactions, { refetch }] = createResource(
         () => venueId() && slots().length > 0,
         async () => {
+            const date = selectedDate()!;
             const currentSlots = slots();
             if (!currentSlots.length) return [];
 
             const productIds = Array.from(new Set(currentSlots.map(s => s.productId)));
 
             const txs = await Promise.all(productIds.map(async (productId) => {
-                const dayStart = new Date(currentSlots[0].start);
+                const dayStart = new Date(date);
                 dayStart.setHours(0, 0, 0, 0);
 
-                const dayEnd = new Date(currentSlots[0].start);
+                const dayEnd = new Date(date);
                 dayEnd.setHours(23, 59, 59, 999);
 
                 return await getTransactionsForDay(productId, dayStart, dayEnd);
@@ -144,29 +164,37 @@ export default function Host() {
             productName: string;
             productPrice: number;
         }) => {
-
-        if (!host()) throw new Error("Host not found");
-
-        const form: TransactionFormData = {
-            productId: slot.productId,
-            userId: host()?.ownerId,
-            quantity: quantity,
-            reservedTimeStart: slot.start,
-            reservedTimeEnd: slot.end,
-            status: 'PENDING'
-        }
-
         try {
-            const newTransaction = await createNewTransaction(form);
+            const checkoutUrl = await createPaymongoCheckout(
+                quantity,
+                {
+                    productId: slot.productId,
+                    start: slot.start,
+                    end: slot.end,
+                    productName: slot.productName,
+                    productPrice: slot.productPrice,
+                }
+            );
 
-            alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
-            refetch();
+            window.location.href = checkoutUrl;
+
         } catch (err) {
             console.error(err);
             alert("Failed to start checkout.");
         }
     };
 
+    const handleDelete = () => {
+        setIsOpen(false);
+    }
+
+    const onChangeDay = (date: any) => {
+        if (date) {
+            setSelectedDate(date.currentDate);
+            setSelectedSlot(null);
+        }
+
+    }
     return (
         <main>
             <Title>Booking</Title>
@@ -196,9 +224,19 @@ export default function Host() {
                                                 thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
                                                 isSelected={selectedCourtId() === v.id}
                                                 onClick={[handleSelectVenue, v.id]}
+                                                status="open"
                                             />
                                         )}
                                     </For>
+                                </div>
+                            </Show>
+                            <Show when={selectedCourtId() !== 0}>
+                                <div class="flex justify-center w-full">
+                                    <DateTimePickerClient
+                                        key={venueId()}
+                                        value={selectedDate()}
+                                        calendarResponse={onChangeDay}
+                                    />
                                 </div>
                             </Show>
 
@@ -229,6 +267,8 @@ export default function Host() {
                                                                 && selectedSlot()?.productId === slot.productId}
                                                             isAvailable={!availability()[key]}
                                                             onClick={[setSelectedSlot, slot]}
+                                                            isAdmin={true}
+                                                            onDelete={() => setIsOpen(true)}
                                                         />
                                                     );
                                                 }}
@@ -265,7 +305,6 @@ export default function Host() {
                         <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
                             <div class="flex justify-between w-full items-center">
                                 <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">Operating Hours</h3>
-                                <StatusPill status="closed" />
                             </div>
                             <div class="flex justify-between pl-4 sm:pl-6 lg:pl-[30px]">
                                 <p class="body-2 text-sm sm:text-base">Mon - Fri</p>
@@ -280,6 +319,15 @@ export default function Host() {
                             />
                         </aside>
                     </div>
+                    <ConfirmationModal
+                        isOpen={isOpen()}
+                        title="Delete Item?"
+                        message="Are you sure you want to delete this item? This action cannot be undone."
+                        confirmText="Yes, Delete"
+                        cancelText="Cancel"
+                        onConfirm={handleDelete}
+                        onCancel={() => setIsOpen(false)}
+                    />
                 </Show>
             </div>
         </main>
