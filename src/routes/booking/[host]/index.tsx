@@ -95,14 +95,18 @@ export default function Host() {
             const productIds = Array.from(new Set(currentSlots.map(s => s.productId)));
 
             const txs = await Promise.all(productIds.map(async (productId) => {
-                const dayStart = new Date(currentSlots[0].start);
+                const dayStart = new Date();
                 dayStart.setHours(0, 0, 0, 0);
 
-                const dayEnd = new Date(currentSlots[0].start);
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayStart.getDate() + 7);
                 dayEnd.setHours(23, 59, 59, 999);
 
                 return await getTransactionsForDay(productId, dayStart, dayEnd);
             }));
+
+            console.log("product ids for current slots:", productIds);
+            console.log("Transactions for current slots:", txs);
 
             return txs.flat();
         },
@@ -166,7 +170,7 @@ export default function Host() {
                     end: slot.end,
                     productName: slot.productName,
                     productPrice: slot.productPrice,
-                    
+
                 }
             );
 
