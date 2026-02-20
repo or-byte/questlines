@@ -39,6 +39,7 @@ export default function Host() {
     const [host] = createResource(params.host, getHostBySlug);
     const [venues] = createResource(() => host()?.id, getVenuesByHost);
     const [venueId, setVenueId] = createSignal<number>(0);
+    const [products] = createResource(() => venueId(), getProductsByVenueId);
     const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
     const [isOpen, setIsOpen] = createSignal(false);
     const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
@@ -200,13 +201,13 @@ export default function Host() {
     const handleDelete = async () => {
         const id = transactionToDelete();
         console.log("id", id);
-        
+
         if (!id) return;
 
         try {
             const res = await updateTransactionStatus(id, "CANCELLED");
             console.log(res);
-            
+
         } catch (err) {
             console.error("Failed to update transaction", err);
         }
@@ -234,7 +235,7 @@ export default function Host() {
                         </div>
                     }>
                     <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
-                        {host()?.slug}
+                        {host()?.name}
                     </h1>
                     <div class="mt-4 sm:mt-6 lg:mt-[20px]">
                         <Carousel images={imageUrls} />
@@ -247,7 +248,7 @@ export default function Host() {
                                     <For each={venues()}>
                                         {(v) => (
                                             <CourtCard
-                                                title={v.slug}
+                                                title={v.name}
                                                 thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
                                                 isSelected={selectedCourtId() === v.id}
                                                 onClick={[handleSelectVenue, v.id]}
@@ -329,13 +330,27 @@ export default function Host() {
 
                         {/* Sidebar */}
                         <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
-                            <div class="flex justify-between w-full items-center">
-                                <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">Operating Hours</h3>
-                            </div>
-                            <div class="flex justify-between pl-4 sm:pl-6 lg:pl-[30px]">
-                                <p class="body-2 text-sm sm:text-base">Mon - Fri</p>
-                                <p class="body-2 text-sm sm:text-base">6:00 AM - 12:00 AM</p>
-                            </div>
+                            <Show when={products()?.length}>
+                                <div class="flex flex-col w-full gap-3">
+                                    <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">
+                                        Operating Hours
+                                    </h3>
+                                    <For each={products()}>
+                                        {(product) => (
+                                            <div class="flex justify-between items-center w-full pb-2">
+                                                <span class="font-bold">
+                                                    {product.name}
+                                                </span>
+
+                                                <span class="text-right">
+                                                    {product.description}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </For>
+                                </div>
+                            </Show>
+
                             <InfoPanel
                                 email="sampleemail@gmail.com"
                                 address="Address, address, address"
