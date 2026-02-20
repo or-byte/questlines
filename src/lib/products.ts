@@ -6,6 +6,7 @@ export type Product = PrismaProduct;
 export type ProductFormData = {
     sku: string
     name: string
+    description: string
     price: number
     venueId: number
 }
@@ -16,6 +17,7 @@ export async function createNewProduct(form: ProductFormData) {
         data: {
             sku: form.sku,
             name: form.name,
+            description: form.description,
             price: form.price,
             venue: { connect: { id: form.venueId } },
         }
