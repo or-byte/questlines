@@ -13,12 +13,15 @@ model User {
   fullName     String
   role         Role
   transactions Transaction[]
+  hosts        Host[]
 }
 
 model Host {
-  id     Int     @id @default(autoincrement())
-  slug   String  @unique
-  venues Venue[]
+  id      Int     @id @default(autoincrement())
+  slug    String  @unique
+  ownerId Int
+  owner   User    @relation(fields: [ownerId], references: [id])
+  venues  Venue[]
 }
 
 model Venue {
@@ -73,4 +76,5 @@ enum TransactionStatus {
   PENDING
   PAID
   CANCELLED
+  FAILED
 }

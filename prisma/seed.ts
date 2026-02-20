@@ -5,15 +5,16 @@ import { ScheduleFormData } from "~/lib/schedule";
 async function main() {
     const user1 = await prisma.user.create({
         data: {
-            email: "arkclumacad@gmail.com",
-            fullName: "Ark Lumacad",
-            role: "CUSTOMER",
+            email: "cana_resort@gmail.com",
+            fullName: "Cana Resort",
+            role: "ADMIN",
         }
     })
 
     const host1 = await prisma.host.create({
         data: {
-            slug: "cana"
+            slug: "cana",
+            owner: { connect: { id: user1.id } }
         }
     })
 
@@ -28,8 +29,14 @@ async function main() {
     const products: ProductFormData[] = [
         {
             sku: "CANA-PB-1-WD",
-            name: "Pickleball Weekday per hour",
+            name: "Pickle Ball Weekday per hour",
             price: 300.00,
+            venueId: venue1.id
+        },
+        {
+            sku: "CANA-PB-1-WE",
+            name: "Pickle Ball Weekend per hour",
+            price: 500.00,
             venueId: venue1.id
         }
     ]
@@ -38,64 +45,27 @@ async function main() {
         await createNewProduct(p);
     }
 
-    const productId = 1;
+    const timeSlots = [[6, 8], [8, 10], [10, 12], [12, 14], [14, 16], [16, 18], [18, 20], [20, 22], [22, 24]];
 
-    const schedules: ScheduleFormData[] = [
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T06:00:00"),
-            endTime: new Date("1970-01-01T08:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T08:00:00"),
-            endTime: new Date("1970-01-01T10:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T10:00:00"),
-            endTime: new Date("1970-01-01T12:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T12:00:00"),
-            endTime: new Date("1970-01-01T14:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T14:00:00"),
-            endTime: new Date("1970-01-01T16:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T16:00:00"),
-            endTime: new Date("1970-01-01T18:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T18:00:00"),
-            endTime: new Date("1970-01-01T20:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T20:00:00"),
-            endTime: new Date("1970-01-01T22:00:00"),
-        },
-        {
-            productId,
-            dayOfWeek: 1,
-            startTime: new Date("1970-01-01T22:00:00"),
-            endTime: new Date("1970-01-02T00:00:00"),
-        },
-    ];
+    const schedules: ScheduleFormData[] = [];
+
+    for (let day = 0; day <= 6; day++) {
+        const isWeekday = day >= 1 && day <= 4;
+
+        const productId = isWeekday ? 1 : 2;
+
+        for (const [startHour, endHour] of timeSlots) {
+            const start = new Date(1970, 0, 1, startHour, 0, 0);
+            const end = endHour === 24 ? new Date(1970, 0, 2, 0, 0, 0) : new Date(1970, 0, 1, endHour, 0, 0);
+
+            schedules.push({
+                productId,
+                dayOfWeek: day,
+                startTime: start,
+                endTime: end
+            });
+        }
+    }
 
     for (const schedule of schedules) {
         await prisma.schedule.create({

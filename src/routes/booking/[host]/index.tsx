@@ -11,6 +11,7 @@ import CourtCard from "~/components/court_card/CourtCard";
 import TimeSlot from "~/components/time_slot/TimeSlot";
 import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
+import { createPaymongoCheckout } from "~/lib/paymongo";
 
 export default function Host() {
     const params = useParams();
@@ -76,7 +77,7 @@ export default function Host() {
 
         if (!allSchedules()) return [];
 
-        const results : FormattedSchedule[] = [];
+        const results: FormattedSchedule[] = [];
 
         allSchedules()!.forEach(schedule => {
             results.push(formatSchedules(schedule));
@@ -94,14 +95,18 @@ export default function Host() {
             const productIds = Array.from(new Set(currentSlots.map(s => s.productId)));
 
             const txs = await Promise.all(productIds.map(async (productId) => {
-                const dayStart = new Date(currentSlots[0].start);
+                const dayStart = new Date();
                 dayStart.setHours(0, 0, 0, 0);
 
-                const dayEnd = new Date(currentSlots[0].start);
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayStart.getDate() + 7);
                 dayEnd.setHours(23, 59, 59, 999);
 
                 return await getTransactionsForDay(productId, dayStart, dayEnd);
             }));
+
+            console.log("product ids for current slots:", productIds);
+            console.log("Transactions for current slots:", txs);
 
             return txs.flat();
         },
@@ -134,28 +139,46 @@ export default function Host() {
         }
     });
 
-    const handleBookNow = async (slot: { start: Date; end: Date; productId: number }) => {
-        const quantity = (slot.end.getTime() - slot.start.getTime()) / (1000 * 60 * 60);
-
+    const handleBookNow = async (
+        quantity: number,
+        slot: {
+            start: Date;
+            end: Date;
+            productId: number;
+            productName: string;
+            productPrice: number;
+        }) => {
         try {
-            const newTransaction = await createNewTransaction({
+            const transaction = await createNewTransaction({
                 productId: slot.productId,
-                userId: 1,
+                userId: 1, // TODO: replace with actual user ID from auth
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
-                status: 'PENDING'
+                status: "PENDING"
             });
 
-            alert(`Booked successfully! Transaction ID: ${newTransaction[0].id}`);
-            window.location.reload();
-        } catch (err: any) {
-            if (err.code === "23P01") {
-                alert("Sorry, this slot is already booked.");
-            } else {
-                console.error(err);
-                alert("Something went wrong.");
-            }
+            if (!transaction?.id) throw new Error("Failed to create transaction: ");
+            alert("transaction created with ID: " + transaction.id);
+
+            const checkoutUrl = await createPaymongoCheckout(
+                quantity,
+                transaction.id,
+                {
+                    productId: slot.productId,
+                    start: slot.start,
+                    end: slot.end,
+                    productName: slot.productName,
+                    productPrice: slot.productPrice,
+
+                }
+            );
+
+            window.location.href = checkoutUrl;
+
+        } catch (err) {
+            console.error(err);
+            alert("Failed to start checkout");
         }
     };
 
@@ -235,7 +258,7 @@ export default function Host() {
                                         const hours =
                                             (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
                                         const totalPrice = slot().productPrice * hours;
-                                        
+
                                         return (
                                             <>
                                                 <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
@@ -245,7 +268,7 @@ export default function Host() {
                                                         { label: 'Price per hour', value: `₱${slot().productPrice.toFixed(2)}` },
                                                     ]}
                                                     total={totalPrice.toFixed(2).toString()}
-                                                    onBook={() => handleBookNow(slot())}
+                                                    onBook={() => handleBookNow(hours, slot())}
                                                 />
                                             </>
                                         );
