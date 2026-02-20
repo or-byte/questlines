@@ -17,28 +17,33 @@ model User {
 }
 
 model Host {
-  id      Int     @id @default(autoincrement())
-  slug    String  @unique
-  ownerId Int
-  owner   User    @relation(fields: [ownerId], references: [id])
-  venues  Venue[]
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String  @default("")
+  description String  @default("")
+  ownerId     Int
+  owner       User    @relation(fields: [ownerId], references: [id])
+  venues      Venue[]
 }
 
 model Venue {
-  id       Int       @id @default(autoincrement())
-  slug     String    @unique
-  address  String
-  hostId   Int?
-  host     Host?     @relation(fields: [hostId], references: [id])
-  products Product[]
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  name        String    @default("")
+  description String    @default("")
+  address     String    @default("")
+  hostId      Int?
+  host        Host?     @relation(fields: [hostId], references: [id])
+  products    Product[]
 }
 
 model Product {
-  id      Int    @id @default(autoincrement())
-  sku     String @unique
-  name    String
-  venueId Int
-  venue   Venue  @relation(fields: [venueId], references: [id])
+  id          Int    @id @default(autoincrement())
+  sku         String @unique
+  name        String @default("")
+  description String @default("")
+  venueId     Int
+  venue       Venue  @relation(fields: [venueId], references: [id])
 
   price        Decimal       @db.Decimal(10, 2)
   transactions Transaction[]
