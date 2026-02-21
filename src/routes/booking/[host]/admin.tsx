@@ -24,9 +24,20 @@ export default function Host() {
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
     ]; //static
+
+    //DB Resources
+    const [host] = createResource(params.host, getHostBySlug);
+    const [venues] = createResource(() => host()?.id, getVenuesByHost);
+    const [venueId, setVenueId] = createSignal<number>(0);
+    const [products] = createResource(() => venueId(), getProductsByVenueId);
+
+    // States
+    const [isModalOpen, setIsModalOpen] = createSignal(false);
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
     const [transactionToDelete, setTransactionToDelete] = createSignal<number | null>(null);
-    const [isChangingVenue, setIsChangingVenue] = createSignal(false);
+    const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
+    const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
+
     const [selectedSlot, setSelectedSlot] = createSignal<{
         label: string;
         start: Date;
@@ -36,13 +47,6 @@ export default function Host() {
         productPrice: number;
     } | null>(null);
 
-    const [host] = createResource(params.host, getHostBySlug);
-    const [venues] = createResource(() => host()?.id, getVenuesByHost);
-    const [venueId, setVenueId] = createSignal<number>(0);
-    const [products] = createResource(() => venueId(), getProductsByVenueId);
-    const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
-    const [isOpen, setIsOpen] = createSignal(false);
-    const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
     const [slotsForDay, setSlotsForDay] = createSignal<{
         label: string;
         start: Date;
@@ -51,17 +55,17 @@ export default function Host() {
         productName: string;
         productPrice: number;
     }[]>([]);
+
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
-        setIsChangingVenue(true);
         setVenueId(id);
         setSelectedCourtId(id);
         setSelectedSlot(null);
     };
 
     const [allSchedules] = createResource(
-        () => ({ venueId: venueId(), date: selectedDate() }),
-        async ({ venueId, date }) => {
+        () => ({ venueId: venueId() }),
+        async ({ venueId }) => {
             if (!venueId) return [];
 
             const products = await getProductsByVenueId(venueId);
@@ -88,7 +92,6 @@ export default function Host() {
         productPrice: number;
         transactionId?: number;
     }[]>((prev) => {
-        if (isChangingVenue()) return [];
         if (allSchedules.loading) {
             return prev || [];
         }
@@ -156,12 +159,6 @@ export default function Host() {
         setAvailability(newAvailability);
     });
 
-    createEffect(() => {
-        if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
-            setIsChangingVenue(false);
-        }
-    });
-
     const handleBookNow = async (
         quantity: number,
         slot: {
@@ -187,7 +184,7 @@ export default function Host() {
             const newTransaction = await createNewTransaction(form);
 
             alert(`Booked successfully! Transaction ID: ${newTransaction.id}`);
-            refetch();
+            await refetch();
         } catch (err) {
             console.error(err);
         }
@@ -195,12 +192,11 @@ export default function Host() {
 
     const onClickDelete = (id: any) => {
         setTransactionToDelete(id);
-        setIsOpen(true)
+        setIsModalOpen(true)
     }
 
     const handleDelete = async () => {
         const id = transactionToDelete();
-        console.log("id", id);
 
         if (!id) return;
 
@@ -212,7 +208,7 @@ export default function Host() {
             console.error("Failed to update transaction", err);
         }
 
-        setIsOpen(false);
+        setIsModalOpen(false);
         setTransactionToDelete(null);
     }
 
@@ -227,6 +223,7 @@ export default function Host() {
         <main>
             <Title>Booking</Title>
             <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
+                {/* Show spinner when host is loading */}
                 <Show
                     when={!host.loading && host()}
                     fallback={
@@ -243,6 +240,7 @@ export default function Host() {
                     <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
                         {/* Main content */}
                         <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
+                            {/* Venues */}
                             <Show when={venues()}>
                                 <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
                                     <For each={venues()}>
@@ -258,6 +256,7 @@ export default function Host() {
                                     </For>
                                 </div>
                             </Show>
+                            {/* DateTimePickerClient component shows when CourtCard is selected */}
                             <Show when={selectedCourtId() !== 0}>
                                 <div class="flex justify-center w-full">
                                     <DateTimePickerClient
@@ -269,24 +268,27 @@ export default function Host() {
                             </Show>
 
                             <div>
+                                {/* Show spinner when loading schedules */}
                                 <Show
-                                    when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
+                                    when={!allSchedules.loading && !transactions.loading}
                                     fallback={
                                         <div class="flex justify-center py-12">
                                             <div class="spinner"></div>
                                         </div>
                                     }
                                 >
+                                    {/* Show time slots */}
                                     <Show when={slots().length}>
-                                        <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
+                                        <h2 class="text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
                                             Upcoming Schedules for{" "}
-                                            {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
+                                            {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
                                         </h2>
                                         <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
                                             <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
                                                     return (
+                                                        // when onDelete is triggered, ConfirmationModal shows
                                                         <TimeSlot
                                                             time={slot.label}
                                                             price={slot.productPrice.toFixed(2)}
@@ -304,6 +306,7 @@ export default function Host() {
                                     </Show>
                                 </Show>
 
+                                {/* Show when a time slot is selected  */}
                                 <Show when={selectedSlot()}>
                                     {(slot) => {
                                         const hours =
@@ -331,20 +334,20 @@ export default function Host() {
                         {/* Sidebar */}
                         <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
                             <Show when={products()?.length}>
-                                <div class="flex flex-col w-full gap-3">
-                                    <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">
-                                        Operating Hours
+                                <div class="flex flex-col w-full gap-3 items-start">
+                                    <h3 class="text-2xl mb-2">
+                                        Operating Days
                                     </h3>
                                     <For each={products()}>
                                         {(product) => (
-                                            <div class="flex justify-between items-center w-full pb-2">
-                                                <span class="font-bold">
+                                            <div>
+                                                <p class="subheader-1 text-left">
                                                     {product.name}
-                                                </span>
+                                                </p>
 
-                                                <span class="text-right">
+                                                <p class="body-3 text-[var(--color-footer)] text-left">
                                                     {product.description}
-                                                </span>
+                                                </p>
                                             </div>
                                         )}
                                     </For>
@@ -360,14 +363,15 @@ export default function Host() {
                             />
                         </aside>
                     </div>
+                    {/* Confirmation Modal pops when isModalOpen */}
                     <ConfirmationModal
-                        isOpen={isOpen()}
+                        isOpen={isModalOpen()}
                         title="Delete Item?"
                         message="Are you sure you want to delete this item? This action cannot be undone."
                         confirmText="Yes, Delete"
                         cancelText="Cancel"
                         onConfirm={handleDelete}
-                        onCancel={() => setIsOpen(false)}
+                        onCancel={() => setIsModalOpen(false)}
                     />
                 </Show>
             </div>

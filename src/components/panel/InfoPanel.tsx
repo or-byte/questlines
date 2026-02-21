@@ -47,7 +47,7 @@ export default function InfoPanel(props: InfoPanelProps) {
 }
 
 const SectionTitle = (props: { title: string }) => (
-  <h3 class="text-2xl font-semibold text-[#3a1b47] mb-6 tracking-wide">
+  <h3 class="font-semibold mb-6 tracking-wide">
     {props.title}
   </h3>
 );
