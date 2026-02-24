@@ -3,7 +3,7 @@ import { useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
-import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
+import { formatSchedules, getSchedules } from "~/lib/schedule";
 import { createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
@@ -13,6 +13,7 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -51,6 +52,7 @@ export default function Host() {
         productName: string;
         productPrice: number;
         transactionId?: number;
+        transactionUser?: string;
     }[]>([]);
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
@@ -128,6 +130,8 @@ export default function Host() {
 
     createEffect(() => {
         const txs = transactions() || [];
+
+        console.log(txs);
         const date = selectedDate();
         const newAvailability: Record<string, boolean> = {};
 
@@ -145,9 +149,11 @@ export default function Host() {
                     return formatted.start < txEnd && formatted.end > txStart;
                 });
 
+
                 return {
                     ...formatted,
-                    transactionId: matchedTx?.id
+                    transactionId: matchedTx?.id,
+                    transactionUser: matchedTx?.userName
                 };
             });
 
@@ -190,7 +196,7 @@ export default function Host() {
             quantity: quantity,
             reservedTimeStart: slot.start,
             reservedTimeEnd: slot.end,
-            status: 'PAID'
+            status: TransactionStatus.PAID
         }
 
         try {
@@ -294,6 +300,7 @@ export default function Host() {
                                             <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
                                                     return (
                                                         <TimeSlot
                                                             time={slot.label}
@@ -304,6 +311,7 @@ export default function Host() {
                                                             onClick={[setSelectedSlot, slot]}
                                                             isAdmin={true}
                                                             onDelete={() => onClickDelete(slot.transactionId)}
+                                                            user={slot.transactionUser}
                                                         />
                                                     );
                                                 }}

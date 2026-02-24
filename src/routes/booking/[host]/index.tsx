@@ -13,6 +13,7 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import { createPaymongoCheckout } from "~/lib/paymongo";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -176,7 +177,7 @@ export default function Host() {
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
-                status: "PENDING"
+                status: TransactionStatus.PENDING
             });
 
             if (!transaction?.id) throw new Error("Failed to create transaction: ");

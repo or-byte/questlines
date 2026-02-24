@@ -19,7 +19,58 @@ export type FormattedSchedule = {
     productPrice: number
 }
 
-export const createNewSchedule = async (form: ScheduleFormData) => {
+export const getSchedules = async (productId: number) : Promise<Schedule[]> => {
+    "use server"
+    return await prisma.schedule.findMany({
+        where: { productId },
+        orderBy: [
+            { dayOfWeek: "asc" },
+            { startTime: "asc" }
+        ]
+    })
+}
+
+export const formatSchedules = (schedule: Schedule) : FormattedSchedule => {
+    const today = new Date();
+
+    const currentDay = today.getDay();
+    const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
+
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + diff);
+
+    const start = new Date(targetDate);
+    const end = new Date(targetDate);
+
+    start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
+    end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
+
+    if (end <= start) {
+        end.setDate(end.getDate() + 1);
+    }
+
+    const label = start.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    }) + " - " +
+        end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+    const formattedSchedule: FormattedSchedule = {
+        label,
+        start,
+        end,
+        productId: schedule.productId,
+        productName: schedule.product?.name || "Unknown",
+        productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
+    };
+
+    return formattedSchedule;
+}   
+
+export const createNewSchedule = async (form: ScheduleFormData): Promise<Schedule> => {
     "use server";
 
     const { productId, dayOfWeek, startTime, endTime } = form;
@@ -62,54 +113,3 @@ export const createNewSchedule = async (form: ScheduleFormData) => {
         throw e;
     }
 };
-
-export const getSchedules = async (productId: number) => {
-    "use server"
-    return await prisma.schedule.findMany({
-        where: { productId },
-        orderBy: [
-            { dayOfWeek: "asc" },
-            { startTime: "asc" }
-        ]
-    })
-}
-
-export const formatSchedules = (schedule: Schedule) => {
-    const today = new Date();
-
-    const currentDay = today.getDay();
-    const diff = (schedule.dayOfWeek - currentDay + 7) % 7;
-
-    const targetDate = new Date(today);
-    targetDate.setDate(today.getDate() + diff);
-
-    const start = new Date(targetDate);
-    const end = new Date(targetDate);
-
-    start.setHours(schedule.startTime.getHours(), schedule.startTime.getMinutes(), 0, 0);
-    end.setHours(schedule.endTime.getHours(), schedule.endTime.getMinutes(), 0, 0);
-
-    if (end <= start) {
-        end.setDate(end.getDate() + 1);
-    }
-
-    const label = start.toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    }) + " - " +
-        end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-
-    const formattedSchedule: FormattedSchedule = {
-        label,
-        start,
-        end,
-        productId: schedule.productId,
-        productName: schedule.product?.name || "Unknown",
-        productPrice: schedule.product?.price ? Number(schedule.product.price) : 0,
-    };
-
-    return formattedSchedule;
-}

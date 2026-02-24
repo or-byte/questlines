@@ -1,7 +1,8 @@
 import prisma from "./prisma";
 import { Product as PrismaProduct } from "@prisma/client"
 
-export type Product = PrismaProduct;
+export type Product = Omit<PrismaProduct, "price"> & { price: number };
+
 
 export type ProductFormData = {
     sku: string
@@ -11,7 +12,19 @@ export type ProductFormData = {
     venueId: number
 }
 
-export async function createNewProduct(form: ProductFormData) {
+export async function getProductsByVenueId(id: number): Promise<Product[]> {
+    "use server";
+    const products = await prisma.product.findMany({
+        where: { venueId: id }
+    })
+
+    return products.map(p => ({
+        ...p,
+        price: Number(p.price),
+    }));
+}
+
+export async function createNewProduct(form: ProductFormData): Promise<Product> {
     "use server";
     const product = await prisma.product.create({
         data: {
@@ -22,17 +35,8 @@ export async function createNewProduct(form: ProductFormData) {
             venue: { connect: { id: form.venueId } },
         }
     })
-    return product;
-}
-
-export async function getProductsByVenueId(id: number) {
-    "use server";
-    const products = await prisma.product.findMany({
-        where: { venueId: id }
-    })
-
-    return products.map(p => ({
-        ...p,
-        price: Number(p.price),
-    }));
+    return {
+        ...product,
+        price: Number(product.price)
+    };
 }
