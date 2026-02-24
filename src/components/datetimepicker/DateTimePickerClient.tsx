@@ -6,5 +6,9 @@ export default function DateTimePickerClient(props: any) {
     currentDate={props.value ?? new Date()}
     calendarResponse={props.calendarResponse}
     customizeTogglerCalendarIcon="calendarColor"
-    closeOnSelect={true} />;
+    closeOnSelect={true} 
+    minDate = {props.minDate}
+    maxDate = {props.maxDate}
+    />;
+    
 }

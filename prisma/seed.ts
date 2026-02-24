@@ -55,7 +55,7 @@ async function main() {
 
     const schedules: ScheduleFormData[] = [];
 
-    for (let day = 0; day <= 6; day++) {
+    for (let day = 1; day <= 4; day++) {
         const isWeekday = day >= 1 && day <= 4;
 
         const productId = isWeekday ? 1 : 2;

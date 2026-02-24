@@ -249,11 +249,25 @@ export default function Host() {
                             </Show>
                             <Show when={selectedCourtId() !== 0}>
                                 <div class="flex justify-center w-full">
-                                    <DateTimePickerClient
-                                        key={venueId()}
-                                        value={selectedDate()}
-                                        calendarResponse={onChangeDay}
-                                    />
+                                    {(() => {
+                                        const minDate = new Date();
+                                        minDate.setHours(0, 0, 0, 0);
+
+                                        const maxDate = new Date();
+                                        maxDate.setHours(23, 59, 59, 999);
+                                        maxDate.setDate(maxDate.getDate() + 6);
+
+                                        return (
+                                            <DateTimePickerClient
+                                                key={venueId()}
+                                                value={selectedDate()}
+                                                calendarResponse={onChangeDay}
+                                                minDate={minDate}
+                                                maxDate={maxDate}
+                                                enableDateRangeSelector={true}
+                                            />
+                                        );
+                                    })()}
                                 </div>
                             </Show>
 
