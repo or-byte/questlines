@@ -19,7 +19,7 @@ const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
     { fallback: <div>Loading date picker...</div> }
 );
-export default function Host() {
+export default function AdminHost() {
     const params = useParams();
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
