@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import crypto from "crypto";
 import prisma from "~/lib/prisma";
 
@@ -5,10 +6,8 @@ const WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET!.trim();
 
 export async function POST({ request }: { request: Request }) {
     try {
-        const rawBody = await request.text(); 
+        const rawBody = await request.text();
         const signatureHeader = request.headers.get("paymongo-signature");
-
-        console.log("paymongo-signature header:", signatureHeader);
 
         if (!signatureHeader) {
             return new Response("Missing signature", { status: 400 });
@@ -62,9 +61,34 @@ export async function POST({ request }: { request: Request }) {
         }
 
         if (event.data.attributes.type === "checkout_session.payment.paid") {
+            const payment = event.data.attributes.data.attributes.payments?.[0]?.attributes;
+
+            const email = payment?.billing?.email;
+            const name = payment?.billing?.name;
+            const phone = payment?.billing?.phone;
+
+            if (!email) {
+                console.error("No email found in event");
+                return;
+            }
+
+            let user = await prisma.user.findUnique({
+                where: { email }
+            })
+
+            if (!user) {
+                user = await prisma.user.create({
+                    data: {
+                        email: email,
+                        fullName: name,
+                        role: Role.CUSTOMER
+                    }
+                })
+            }
+
             await prisma.transaction.updateMany({
                 where: { id: Number(transactionId), status: "PENDING" },
-                data: { status: "PAID" },
+                data: { status: "PAID", userId: user.id },
             });
             console.log("Transaction marked as PAID:", transactionId);
         }

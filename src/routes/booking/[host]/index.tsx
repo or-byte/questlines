@@ -13,6 +13,7 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import { createPaymongoCheckout } from "~/lib/paymongo";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -176,7 +177,7 @@ export default function Host() {
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
-                status: "PENDING"
+                status: TransactionStatus.PENDING
             });
 
             if (!transaction?.id) throw new Error("Failed to create transaction: ");
@@ -248,11 +249,25 @@ export default function Host() {
                             </Show>
                             <Show when={selectedCourtId() !== 0}>
                                 <div class="flex justify-center w-full">
-                                    <DateTimePickerClient
-                                        key={venueId()}
-                                        value={selectedDate()}
-                                        calendarResponse={onChangeDay}
-                                    />
+                                    {(() => {
+                                        const minDate = new Date();
+                                        minDate.setHours(0, 0, 0, 0);
+
+                                        const maxDate = new Date();
+                                        maxDate.setHours(23, 59, 59, 999);
+                                        maxDate.setDate(maxDate.getDate() + 6);
+
+                                        return (
+                                            <DateTimePickerClient
+                                                key={venueId()}
+                                                value={selectedDate()}
+                                                calendarResponse={onChangeDay}
+                                                minDate={minDate}
+                                                maxDate={maxDate}
+                                                enableDateRangeSelector={true}
+                                            />
+                                        );
+                                    })()}
                                 </div>
                             </Show>
 

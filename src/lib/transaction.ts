@@ -1,4 +1,7 @@
+import { TransactionStatus, Transaction as PrismaTransaction } from "@prisma/client";
 import prisma from "./prisma";
+
+export type Transaction = PrismaTransaction;
 
 export type TransactionFormData = {
     productId: number,
@@ -6,10 +9,27 @@ export type TransactionFormData = {
     quantity: number
     reservedTimeStart: Date,
     reservedTimeEnd: Date,
-    status: string
+    status: TransactionStatus
 }
 
-export const createNewTransaction = async (form: TransactionFormData) => {
+export const getTransactionsForDay = async (productId: number, dayStart: Date, dayEnd: Date): Promise<{ id: number, reservedTime: string, userName: string, userEmail: string }[]> => {
+    "use server"
+
+    return await prisma.$queryRaw<{ id: number, reservedTime: string, userName: string, userEmail: string }[]>`
+            SELECT 
+                t."id",
+                t."reservedTime"::text, 
+                u."fullName" AS "userName",
+                u."email" AS "userEmail"
+            FROM "Transaction" t
+            JOIN "User" u ON u.id = t."userId"
+            WHERE t."productId" = ${productId}
+                AND t."reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
+                AND t."status" = 'PAID'
+        `;
+}
+
+export const createNewTransaction = async (form: TransactionFormData): Promise<Transaction> => {
     "use server";
     const { productId, userId, quantity, reservedTimeStart, reservedTimeEnd, status } = form;
 
@@ -35,34 +55,26 @@ export const createNewTransaction = async (form: TransactionFormData) => {
                 "reservedTime"::text,
                 "status"
         `
-    return result[0];
+
+    if (Array.isArray(result)) return result[0];
+
+    throw new Error("Failed to return response when creating new transaction")
 }
 
-export const updateTransactionStatus = async (id: number, status: string) => {
+export const updateTransactionStatus = async (id: number, status: TransactionStatus): Promise<Transaction> => {
     "use server";
 
-    return await prisma.$queryRaw`
-            UPDATE "Transaction"
-            SET "status" = ${status}::"TransactionStatus"
-            WHERE "id" = ${id}
-            RETURNING 
-                "id",
-                "productId",
-                "userId",
-                "quantity",
-                "reservedTime"::text,
-                "status"
-        `;
+    return await prisma.transaction.update({
+        where: { id },
+        data: { status: status }
+    });
 }
 
-export const getTransactionsForDay = async (productId: number, dayStart: Date, dayEnd: Date) => {
+export const updateTransactionUser = async (id: number, userId: number): Promise<Transaction> => {
     "use server"
 
-    return await prisma.$queryRaw<{ reservedTime: string }[]>`
-            SELECT "reservedTime"::text
-            FROM "Transaction"
-            WHERE "productId" = ${productId}
-                AND "reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
-                AND "status" = 'PAID'
-        `;
+    return await prisma.transaction.update({
+        where: { id },
+        data: { user: { connect: { id: userId } } }
+    })
 }

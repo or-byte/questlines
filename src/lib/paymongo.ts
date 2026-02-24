@@ -7,7 +7,7 @@ export async function createPaymongoCheckout(
         end: Date;
         productName: string;
         productPrice: number;
-    }) {
+    }) : Promise<string> {
     "use server";
 
     const response = await fetch(process.env.PAYMONGO_CHECKOUT_SESSION_URI!, {

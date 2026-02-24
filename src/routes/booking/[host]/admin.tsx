@@ -3,7 +3,7 @@ import { useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
-import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
+import { formatSchedules, getSchedules } from "~/lib/schedule";
 import { createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
@@ -13,6 +13,7 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -50,6 +51,8 @@ export default function Host() {
         productId: number;
         productName: string;
         productPrice: number;
+        transactionId?: number;
+        transactionUser?: string;
     }[]>([]);
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
@@ -126,22 +129,37 @@ export default function Host() {
     );
 
     createEffect(() => {
-        const currentSlots = slots();
         const txs = transactions() || [];
-        const newAvailability: Record<string, boolean> = {};
-        const date = selectedDate();
-        const timeSlots = [];
 
-        allSchedules().map((schedule) => {
-            const formatted = formatSchedules(schedule);
-            if (formatted.start.toDateString() === date.toDateString()) {
-                timeSlots.push(formatted)
-            }
-        });
+        console.log(txs);
+        const date = selectedDate();
+        const newAvailability: Record<string, boolean> = {};
+
+        const timeSlots = allSchedules()
+            .map(schedule => formatSchedules(schedule))
+            .filter(formatted =>
+                formatted.start.toDateString() === date.toDateString()
+            )
+            .map(formatted => {
+                const matchedTx = txs.find(tx => {
+                    const [startRaw, endRaw] = tx.reservedTime.split(",");
+                    const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
+                    const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+
+                    return formatted.start < txEnd && formatted.end > txStart;
+                });
+
+
+                return {
+                    ...formatted,
+                    transactionId: matchedTx?.id,
+                    transactionUser: matchedTx?.userName
+                };
+            });
 
         setSlotsForDay(timeSlots);
 
-        currentSlots.forEach(slot => {
+        timeSlots.forEach(slot => {
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
             const isBooked = txs.some(tx => {
@@ -154,9 +172,7 @@ export default function Host() {
         });
 
         setAvailability(newAvailability);
-    });
 
-    createEffect(() => {
         if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
             setIsChangingVenue(false);
         }
@@ -180,7 +196,7 @@ export default function Host() {
             quantity: quantity,
             reservedTimeStart: slot.start,
             reservedTimeEnd: slot.end,
-            status: 'PAID'
+            status: TransactionStatus.PAID
         }
 
         try {
@@ -200,20 +216,18 @@ export default function Host() {
 
     const handleDelete = async () => {
         const id = transactionToDelete();
-        console.log("id", id);
 
         if (!id) return;
 
         try {
-            const res = await updateTransactionStatus(id, "CANCELLED");
-            console.log(res);
-
+            await updateTransactionStatus(id, "CANCELLED");
         } catch (err) {
             console.error("Failed to update transaction", err);
         }
 
         setIsOpen(false);
         setTransactionToDelete(null);
+        refetch();
     }
 
     const onChangeDay = (date: any) => {
@@ -260,11 +274,26 @@ export default function Host() {
                             </Show>
                             <Show when={selectedCourtId() !== 0}>
                                 <div class="flex justify-center w-full">
-                                    <DateTimePickerClient
-                                        key={venueId()}
-                                        value={selectedDate()}
-                                        calendarResponse={onChangeDay}
-                                    />
+                                    {(() => {
+                                        const minDate = new Date();
+                                        minDate.setHours(0, 0, 0, 0);
+                                        minDate.setDate(minDate.getDate() - 1);
+
+                                        const maxDate = new Date();
+                                        maxDate.setHours(23, 59, 59, 999);
+                                        maxDate.setDate(maxDate.getDate() + 7);
+
+                                        return (
+                                            <DateTimePickerClient
+                                                key={venueId()}
+                                                value={selectedDate()}
+                                                calendarResponse={onChangeDay}
+                                                minDate={minDate}
+                                                maxDate={maxDate}
+                                                enableDateRangeSelector={true}
+                                            />
+                                        );
+                                    })()}
                                 </div>
                             </Show>
 
@@ -286,6 +315,7 @@ export default function Host() {
                                             <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+
                                                     return (
                                                         <TimeSlot
                                                             time={slot.label}
@@ -295,7 +325,8 @@ export default function Host() {
                                                             isAvailable={!availability()[key]}
                                                             onClick={[setSelectedSlot, slot]}
                                                             isAdmin={true}
-                                                            onDelete={() => onClickDelete(slot.productId)}
+                                                            onDelete={() => onClickDelete(slot.transactionId)}
+                                                            user={slot.transactionUser}
                                                         />
                                                     );
                                                 }}
