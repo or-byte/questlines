@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { useParams } from "@solidjs/router";
+import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
@@ -19,8 +19,9 @@ const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
     { fallback: <div>Loading date picker...</div> }
 );
-export default function Host() {
+export default function AdminHost() {
     const params = useParams();
+    const navigate = useNavigate();
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
@@ -131,7 +132,6 @@ export default function Host() {
     createEffect(() => {
         const txs = transactions() || [];
 
-        console.log(txs);
         const date = selectedDate();
         const newAvailability: Record<string, boolean> = {};
 
@@ -230,6 +230,13 @@ export default function Host() {
         refetch();
     }
 
+    const handleEditSchedule = async () => {
+        const id = venueId();
+        if (!id) throw new Error("Invalid venue ID");
+
+        navigate(`schedules?v=${id}`);
+    }
+
     const onChangeDay = (date: any) => {
         if (date) {
             setSelectedDate(date.currentDate);
@@ -308,8 +315,17 @@ export default function Host() {
                                 >
                                     <Show when={slots().length}>
                                         <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
-                                            Upcoming Schedules for{" "}
-                                            {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-left">
+                                                    Upcoming Schedules for{" "}
+                                                    {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
+                                                </span>
+
+                                                <span class="text-right cursor-pointer"
+                                                    onclick={handleEditSchedule}>
+                                                    Edit
+                                                </span>
+                                            </div>
                                         </h2>
                                         <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
                                             <For each={slotsForDay()}>

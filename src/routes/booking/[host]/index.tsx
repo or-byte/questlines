@@ -123,7 +123,7 @@ export default function Host() {
         },
         { initialValue: [] }
     );
-
+    
     createEffect(() => {
         const currentSlots = slots();
         const txs = transactions() || [];
