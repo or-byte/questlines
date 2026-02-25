@@ -1,14 +1,15 @@
 import { Title } from "@solidjs/meta";
-import { useParams, useSearchParams } from "@solidjs/router";
+import { useNavigate, useParams, useSearchParams } from "@solidjs/router";
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { getHostBySlug } from "~/lib/host";
 import { getProductsByVenueId } from "~/lib/products";
-import { createNewSchedule, deleteSchedule, formatSchedules, getSchedules, Schedule, ScheduleWithProduct, updateSchedule } from "~/lib/schedule";
+import { createNewSchedule, deleteSchedule, formatSchedules, getSchedules, ScheduleWithProduct, updateSchedule } from "~/lib/schedule";
 import { getVenueById } from "~/lib/venue";
 
 export default function AdminSchedules() {
     const params = useParams();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     const [host] = createResource(params.host, getHostBySlug);
 
@@ -44,6 +45,7 @@ export default function AdminSchedules() {
     } | null>(null);
 
     const [selectedDays, setSelectedDays] = createSignal<number[]>([]);
+    const [originalDays, setOriginalDays] = createSignal<number[]>([]);
 
     const groupedSlots = createMemo(() => {
         const schedules = allSchedules();
@@ -77,14 +79,36 @@ export default function AdminSchedules() {
             map.get(key)!.days.push(schedule.dayOfWeek);
         });
 
-        return Array.from(map.values());
+        return Array.from(map.values()).sort(
+            (a, b) => a.start.getTime() - b.start.getTime()
+        );
     });
+
+    const handleBack = async () => {
+        navigate(`/booking/${host()?.slug}/admin`)
+    }
+
+    const handleSelectSlot = async (slot: any) => {
+        const isSelected =
+            selectedSlot()?.productId === slot.productId &&
+            selectedSlot()?.start.getTime() === slot.start.getTime();
+
+        if (isSelected) {
+            setSelectedSlot(null);
+            setSelectedDays([]);
+            setOriginalDays([]);
+        } else {
+            setSelectedSlot(slot);
+            setSelectedDays([...slot.days]);
+            setOriginalDays([...slot.days]);
+        }
+    }
 
     const handleSaveSlot = async () => {
         const slot = selectedSlot();
         if (!slot) return;
 
-        const schedules = allSchedules(); // your existing schedules
+        const schedules = allSchedules();
 
         for (let day = 0; day < 7; day++) {
             const exists = schedules.find(
@@ -134,74 +158,109 @@ export default function AdminSchedules() {
                         </div>
                     }
                 >
-                    <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">{host()?.name}</h1>
+                    <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
+                        <div class="flex justify-between items-center">
+                            <span class="text-left">{host()?.name}</span>
+                            <span class="text-right cursor-pointer"
+                                onClick={handleBack}>Back</span>
+                        </div>
+                    </h1>
 
                     <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
                         <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
                             <Show when={venue()} fallback={<div>Loading venue...</div>}>
                                 <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">{venue()?.name}</div>
                                 {/* Day selector */}
-                                <For each={groupedSlots()}>
-                                    {(slot) => (
-                                        <div class="border p-4 rounded mb-3">
-                                            <div class="font-bold">
-                                                {slot.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                                {" - "}
-                                                {slot.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                            </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    <For each={groupedSlots()}>
+                                        {(slot) => {
+                                            const isSelected = () =>
+                                                selectedSlot()?.productId === slot.productId &&
+                                                selectedSlot()?.start.getTime() === slot.start.getTime();
 
-                                            {/* Select the slot */}
-                                            <button
-                                                class={`mt-2 px-3 py-1 rounded ${selectedSlot()?.productId === slot.productId &&
-                                                    selectedSlot()?.start.getTime() === slot.start.getTime() ? "bg-blue-500 text-white" : "bg-gray-200"
-                                                    }`}
-                                                // When selecting a slot
-                                                onClick={() => {
-                                                    setSelectedSlot(slot);
-                                                    setSelectedDays(slot.days);
-                                                }}
-                                            >
-                                                Select this time
-                                            </button>
+                                            return (
+                                                <div
+                                                    class={`p-4 rounded-xl border transition cursor-pointer
+                                                    ${isSelected()
+                                                            ? "border-blue-500 bg-blue-50 shadow-md"
+                                                            : "border-gray-200 hover:border-gray-400 hover:shadow-sm"
+                                                        }`}
+                                                    onClick={() => handleSelectSlot(slot)}
+                                                >
+                                                    {/* Time Header */}
+                                                    <div class="flex justify-between items-center">
+                                                        <div class="text-lg font-semibold text-gray-800">
+                                                            {slot.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                            {" - "}
+                                                            {slot.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                        </div>
 
-                                            {/* Show day checkboxes only for selected slot */}
-                                            <Show
-                                                when={
-                                                    selectedSlot()?.productId === slot.productId &&
-                                                    selectedSlot()?.start.getTime() === slot.start.getTime()
-                                                }
-                                            >
-                                                <div class="flex gap-2 mt-2 flex-wrap">
-                                                    <For each={[0, 1, 2, 3, 4, 5, 6]}>
-                                                        {(dayIndex) => (
-                                                            <label class="flex items-center gap-1">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedDays().includes(dayIndex)}
-                                                                    onChange={(e) => {
-                                                                        const checked = e.currentTarget.checked;
-                                                                        setSelectedDays((prev) =>
-                                                                            checked
-                                                                                ? [...new Set([...prev, dayIndex])]
-                                                                                : prev.filter((d) => d !== dayIndex)
-                                                                        );
-                                                                    }}
-                                                                />
-                                                                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dayIndex]}
-                                                            </label>
+                                                        {isSelected() && (
+                                                            <span class="text-sm text-blue-600 font-medium">
+                                                                Selected
+                                                            </span>
                                                         )}
-                                                    </For>
-                                                    <button
-                                                        class="mt-2 px-3 py-1 bg-green-500 text-white rounded"
-                                                        onClick={handleSaveSlot}
-                                                    >
-                                                        Save Slot
-                                                    </button>
+                                                    </div>
+
+                                                    {/* Days */}
+                                                    <Show when={isSelected()}>
+                                                        <div class="flex flex-wrap gap-2 mt-4">
+                                                            <For each={[0, 1, 2, 3, 4, 5, 6]}>
+                                                                {(dayIndex) => {
+                                                                    const isActive = () => selectedDays().includes(dayIndex);
+
+                                                                    return (
+                                                                        <button
+                                                                            type="button"
+                                                                            class={`px-3 py-1 rounded-full text-sm transition
+                                                                            ${isActive()
+                                                                                    ? "bg-blue-500 text-white"
+                                                                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                                                                }`}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setSelectedDays((prev) =>
+                                                                                    isActive()
+                                                                                        ? prev.filter((d) => d !== dayIndex)
+                                                                                        : [...prev, dayIndex]
+                                                                                );
+                                                                            }}
+                                                                        >
+                                                                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dayIndex]}
+                                                                        </button>
+                                                                    );
+                                                                }}
+                                                            </For>
+                                                        </div>
+
+                                                        {/* Save Button */}
+                                                        <div class="flex justify-end gap-2 mt-3">
+                                                            <button
+                                                                class="px-3 py-1.5 text-sm rounded-md bg-green-500 text-white font-medium hover:bg-green-600 transition"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleSaveSlot();
+                                                                }}
+                                                            >
+                                                                Save
+                                                            </button>
+
+                                                            <button
+                                                                class="px-3 py-1.5 text-sm rounded-md bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedDays([...originalDays()]);
+                                                                }}
+                                                            >
+                                                                Undo
+                                                            </button>
+                                                        </div>
+                                                    </Show>
                                                 </div>
-                                            </Show>
-                                        </div>
-                                    )}
-                                </For>
+                                            );
+                                        }}
+                                    </For>
+                                </div>
                             </Show>
                         </div>
                     </div>
