@@ -47,6 +47,12 @@ export default function AdminSchedules() {
     const [selectedDays, setSelectedDays] = createSignal<number[]>([]);
     const [originalDays, setOriginalDays] = createSignal<number[]>([]);
 
+    const [showAddSlot, setShowAddSlot] = createSignal(false);
+    const [newSlotStart, setNewSlotStart] = createSignal("12:00");
+    const [newSlotEnd, setNewSlotEnd] = createSignal("13:00");
+    const [newSlotProductId, setNewSlotProductId] = createSignal<number | null>(null);
+    const [newSlotDays, setNewSlotDays] = createSignal<number[]>([]);
+
     const groupedSlots = createMemo(() => {
         const schedules = allSchedules();
         if (!schedules?.length) return [];
@@ -170,7 +176,107 @@ export default function AdminSchedules() {
                         <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
                             <Show when={venue()} fallback={<div>Loading venue...</div>}>
                                 <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">{venue()?.name}</div>
-                                {/* Day selector */}
+                                {/* Time Slots */}
+                                <div class="flex justify-between items-center mb-4">
+                                    <h2 class="text-lg font-semibold">Time Slots</h2>
+                                    <button
+                                        class="px-3 py-1.5 rounded-md bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
+                                        onClick={() => setShowAddSlot(true)}
+                                    >
+                                        + Add Time Slot
+                                    </button>
+                                </div>
+                                {/* Add Slot Modal */}
+                                <Show when={showAddSlot()}>
+                                    <div class="fixed inset-0 bg-black/30 flex justify-center items-center z-50">
+                                        <div class="bg-white p-6 rounded-lg w-80">
+                                            <h3 class="text-lg font-semibold mb-4">Add New Slot</h3>
+
+                                            {/* Product selector */}
+                                            <div class="mb-3">
+                                                <label class="block mb-1">Product</label>
+                                                <select
+                                                    class="w-full border px-2 py-1 rounded"
+                                                    value={newSlotProductId() ?? ""}
+                                                    onInput={(e) => setNewSlotProductId(Number(e.currentTarget.value))}
+                                                >
+                                                    <option value="">Select Product</option>
+                                                    <For each={allSchedules().map(s => s.product).filter(Boolean).filter((v, i, a) => a.findIndex(p => p?.id === v?.id) === i)}>
+                                                        {(p) => <option value={p!.id}>{p!.name}</option>}
+                                                    </For>
+                                                </select>
+                                            </div>
+
+                                            {/* Start/End Time */}
+                                            <div class="mb-3 flex gap-2">
+                                                <div class="flex-1">
+                                                    <label class="block mb-1">Start</label>
+                                                    <input type="time" class="w-full border px-2 py-1 rounded" value={newSlotStart()} onInput={e => setNewSlotStart(e.currentTarget.value)} />
+                                                </div>
+                                                <div class="flex-1">
+                                                    <label class="block mb-1">End</label>
+                                                    <input type="time" class="w-full border px-2 py-1 rounded" value={newSlotEnd()} onInput={e => setNewSlotEnd(e.currentTarget.value)} />
+                                                </div>
+                                            </div>
+
+                                            {/* Days */}
+                                            <div class="mb-3 flex flex-wrap gap-2">
+                                                <For each={[0, 1, 2, 3, 4, 5, 6]}>
+                                                    {(dayIndex) => {
+                                                        const isActive = () => newSlotDays().includes(dayIndex);
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                class={`px-3 py-1 rounded-full text-sm transition ${isActive() ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                                                                onClick={() => {
+                                                                    setNewSlotDays(prev => isActive() ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]);
+                                                                }}
+                                                            >
+                                                                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dayIndex]}
+                                                            </button>
+                                                        )
+                                                    }}
+                                                </For>
+                                            </div>
+
+                                            {/* Buttons */}
+                                            <div class="flex justify-end gap-2 mt-4">
+                                                <button
+                                                    class="px-3 py-1.5 rounded-md bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition"
+                                                    onClick={() => setShowAddSlot(false)}
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    class="px-3 py-1.5 rounded-md bg-green-500 text-white font-medium hover:bg-green-600 transition"
+                                                    onClick={async () => {
+                                                        if (!newSlotProductId() || !newSlotStart() || !newSlotEnd()) {
+                                                            alert("Please fill all fields");
+                                                            return;
+                                                        }
+
+                                                        for (const day of newSlotDays()) {
+                                                            await createNewSchedule({
+                                                                productId: newSlotProductId()!,
+                                                                dayOfWeek: day,
+                                                                startTime: new Date(`1970-01-01T${newSlotStart()}:00`),
+                                                                endTime: new Date(`1970-01-01T${newSlotEnd()}:00`),
+                                                            });
+                                                        }
+
+                                                        refetch();
+                                                        setShowAddSlot(false);
+                                                        setNewSlotDays([]);
+                                                        alert("New slot added!");
+                                                    }}
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Show>
+                                {/* Slots */}
                                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                     <For each={groupedSlots()}>
                                         {(slot) => {
