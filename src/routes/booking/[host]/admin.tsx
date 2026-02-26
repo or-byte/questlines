@@ -3,7 +3,7 @@ import { useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
-import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
+import { formatSchedules, getSchedules } from "~/lib/schedule";
 import { createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
@@ -13,12 +13,16 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
+import { getUserIdByEmail } from "~/lib/user";
+import { useSession } from "~/lib/auth";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
     { fallback: <div>Loading date picker...</div> }
 );
 export default function Host() {
+    const session = useSession();
     const params = useParams();
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
@@ -180,7 +184,7 @@ export default function Host() {
             quantity: quantity,
             reservedTimeStart: slot.start,
             reservedTimeEnd: slot.end,
-            status: 'PAID'
+            status: TransactionStatus.PAID
         }
 
         try {

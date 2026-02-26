@@ -1,12 +1,13 @@
+import { TransactionStatus } from "@prisma/client";
 import prisma from "./prisma";
 
 export type TransactionFormData = {
     productId: number,
-    userId: number,
+    userId: string,
     quantity: number
     reservedTimeStart: Date,
     reservedTimeEnd: Date,
-    status: string
+    status: TransactionStatus
 }
 
 export const createNewTransaction = async (form: TransactionFormData) => {
@@ -35,10 +36,13 @@ export const createNewTransaction = async (form: TransactionFormData) => {
                 "reservedTime"::text,
                 "status"
         `
-    return result[0];
+
+    if (Array.isArray(result)) return result[0];
+    
+    throw new Error("Failed to return result response");
 }
 
-export const updateTransactionStatus = async (id: number, status: string) => {
+export const updateTransactionStatus = async (id: number, status: TransactionStatus) => {
     "use server";
 
     return await prisma.$queryRaw`
