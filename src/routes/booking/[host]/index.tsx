@@ -157,18 +157,18 @@ export default function Host() {
         });
 
         setAvailability(newAvailability);
-    });
 
-    createEffect(() => {
         if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
             setIsChangingVenue(false);
         }
     });
 
     createEffect(async () => {
-        const id = await getUserIdByEmail(session().data?.user.email);
-        setUserId(id);
-        console.log("User id set to: ", id)
+        if (session().data) {
+            const email = session().data?.user.email || "";
+            const id = await getUserIdByEmail(email) || "";
+            setUserId(id);
+        }
     })
 
     const handleBookNow = async (
@@ -180,7 +180,6 @@ export default function Host() {
             productName: string;
             productPrice: number;
         }) => {
-        const session = useSession();
         try {
             const transaction = await createNewTransaction({
                 productId: slot.productId,
