@@ -1,6 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { clientOnly } from "@solidjs/start";
 import { MdFillCalendar_month } from 'solid-icons/md'
+import { useSession } from "~/lib/auth";
 
 // const DateTimePickerClient = clientOnly(
 //   () => import("../components/datetimepicker/DateTimePickerClient"),
@@ -8,10 +9,12 @@ import { MdFillCalendar_month } from 'solid-icons/md'
 // );
 
 export default function Home() {
+  const session = useSession();
+
   return (
     <main>
-      <Title>Hello World</Title>
-      <h1>Landing Page</h1>
+      <Title></Title>
+      <h1>Hello, {session().data?.user.name || "Player!"} </h1>
 
       {/* <div class="bg-[var(--color-bg-2)] p-4 rounded-xl shadow-lg">
         <DateTimePickerClient
