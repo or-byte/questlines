@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { useParams } from "@solidjs/router";
+import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
@@ -24,6 +24,16 @@ const DateTimePickerClient = clientOnly(
 export default function Host() {
     const session = useSession();
     const params = useParams();
+    const navigate = useNavigate();    
+
+    createEffect(() => {
+        const user = session()?.data?.user;
+
+        if (user && user.role !== "ADMIN") {
+            navigate(`/booking/${params.host}`);
+        }
+    });
+
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
@@ -228,153 +238,155 @@ export default function Host() {
     }
 
     return (
-        <main>
-            <Title>Booking</Title>
-            <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
-                <Show
-                    when={!host.loading && host()}
-                    fallback={
-                        <div class="flex justify-center items-center min-h-screen">
-                            <div class="spinner"></div>
-                        </div>
-                    }>
-                    <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
-                        {host()?.name}
-                    </h1>
-                    <div class="mt-4 sm:mt-6 lg:mt-[20px]">
-                        <Carousel images={imageUrls} />
-                    </div>
-                    <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
-                        {/* Main content */}
-                        <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
-                            <Show when={venues()}>
-                                <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
-                                    <For each={venues()}>
-                                        {(v) => (
-                                            <CourtCard
-                                                title={v.name}
-                                                thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
-                                                isSelected={selectedCourtId() === v.id}
-                                                onClick={[handleSelectVenue, v.id]}
-                                                status="open"
-                                            />
-                                        )}
-                                    </For>
-                                </div>
-                            </Show>
-                            <Show when={selectedCourtId() !== 0}>
-                                <div class="flex justify-center w-full">
-                                    <DateTimePickerClient
-                                        key={venueId()}
-                                        value={selectedDate()}
-                                        calendarResponse={onChangeDay}
-                                    />
-                                </div>
-                            </Show>
-
-                            <div>
-                                <Show
-                                    when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
-                                    fallback={
-                                        <div class="flex justify-center py-12">
-                                            <div class="spinner"></div>
-                                        </div>
-                                    }
-                                >
-                                    <Show when={slots().length}>
-                                        <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
-                                            Upcoming Schedules for{" "}
-                                            {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
-                                        </h2>
-                                        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
-                                            <For each={slotsForDay()}>
-                                                {(slot) => {
-                                                    const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                                                    return (
-                                                        <TimeSlot
-                                                            time={slot.label}
-                                                            price={slot.productPrice.toFixed(2)}
-                                                            isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
-                                                                && selectedSlot()?.productId === slot.productId}
-                                                            isAvailable={!availability()[key]}
-                                                            onClick={[setSelectedSlot, slot]}
-                                                            isAdmin={true}
-                                                            onDelete={() => onClickDelete(slot.productId)}
-                                                        />
-                                                    );
-                                                }}
-                                            </For>
-                                        </ul>
-                                    </Show>
-                                </Show>
-
-                                <Show when={selectedSlot()}>
-                                    {(slot) => {
-                                        const hours =
-                                            (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
-                                        const totalPrice = slot().productPrice * hours;
-
-                                        return (
-                                            <>
-                                                <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
-                                                <BookingSummary
-                                                    rows={[
-                                                        { label: 'Schedule', value: slot().label },
-                                                        { label: 'Price per hour', value: `₱${slot().productPrice.toFixed(2)}` },
-                                                    ]}
-                                                    total={totalPrice.toFixed(2).toString()}
-                                                    onBook={() => handleBookNow(hours, slot())}
-                                                />
-                                            </>
-                                        );
-                                    }}
-                                </Show>
+        <Show when={session().data?.user && session().data?.user.role === "ADMIN"} fallback={<div>Loading...</div>}>
+            <main>
+                <Title>Booking</Title>
+                <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
+                    <Show
+                        when={!host.loading && host()}
+                        fallback={
+                            <div class="flex justify-center items-center min-h-screen">
+                                <div class="spinner"></div>
                             </div>
+                        }>
+                        <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
+                            {host()?.name}
+                        </h1>
+                        <div class="mt-4 sm:mt-6 lg:mt-[20px]">
+                            <Carousel images={imageUrls} />
                         </div>
+                        <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
+                            {/* Main content */}
+                            <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
+                                <Show when={venues()}>
+                                    <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
+                                        <For each={venues()}>
+                                            {(v) => (
+                                                <CourtCard
+                                                    title={v.name}
+                                                    thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
+                                                    isSelected={selectedCourtId() === v.id}
+                                                    onClick={[handleSelectVenue, v.id]}
+                                                    status="open"
+                                                />
+                                            )}
+                                        </For>
+                                    </div>
+                                </Show>
+                                <Show when={selectedCourtId() !== 0}>
+                                    <div class="flex justify-center w-full">
+                                        <DateTimePickerClient
+                                            key={venueId()}
+                                            value={selectedDate()}
+                                            calendarResponse={onChangeDay}
+                                        />
+                                    </div>
+                                </Show>
 
-                        {/* Sidebar */}
-                        <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
-                            <Show when={products()?.length}>
-                                <div class="flex flex-col w-full gap-3">
-                                    <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">
-                                        Operating Hours
-                                    </h3>
-                                    <For each={products()}>
-                                        {(product) => (
-                                            <div class="flex justify-between items-center w-full pb-2">
-                                                <span class="font-bold">
-                                                    {product.name}
-                                                </span>
-
-                                                <span class="text-right">
-                                                    {product.description}
-                                                </span>
+                                <div>
+                                    <Show
+                                        when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
+                                        fallback={
+                                            <div class="flex justify-center py-12">
+                                                <div class="spinner"></div>
                                             </div>
-                                        )}
-                                    </For>
-                                </div>
-                            </Show>
+                                        }
+                                    >
+                                        <Show when={slots().length}>
+                                            <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
+                                                Upcoming Schedules for{" "}
+                                                {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
+                                            </h2>
+                                            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
+                                                <For each={slotsForDay()}>
+                                                    {(slot) => {
+                                                        const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
+                                                        return (
+                                                            <TimeSlot
+                                                                time={slot.label}
+                                                                price={slot.productPrice.toFixed(2)}
+                                                                isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
+                                                                    && selectedSlot()?.productId === slot.productId}
+                                                                isAvailable={!availability()[key]}
+                                                                onClick={[setSelectedSlot, slot]}
+                                                                isAdmin={true}
+                                                                onDelete={() => onClickDelete(slot.productId)}
+                                                            />
+                                                        );
+                                                    }}
+                                                </For>
+                                            </ul>
+                                        </Show>
+                                    </Show>
 
-                            <InfoPanel
-                                email="sampleemail@gmail.com"
-                                address="Address, address, address"
-                                contact="+63 991 123 4561"
-                                facilities={["Facility1", "Facility2"]}
-                                rules={["rule1", "rule1"]}
-                            />
-                        </aside>
-                    </div>
-                    <ConfirmationModal
-                        isOpen={isOpen()}
-                        title="Delete Item?"
-                        message="Are you sure you want to delete this item? This action cannot be undone."
-                        confirmText="Yes, Delete"
-                        cancelText="Cancel"
-                        onConfirm={handleDelete}
-                        onCancel={() => setIsOpen(false)}
-                    />
-                </Show>
-            </div>
-        </main>
+                                    <Show when={selectedSlot()}>
+                                        {(slot) => {
+                                            const hours =
+                                                (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
+                                            const totalPrice = slot().productPrice * hours;
+
+                                            return (
+                                                <>
+                                                    <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
+                                                    <BookingSummary
+                                                        rows={[
+                                                            { label: 'Schedule', value: slot().label },
+                                                            { label: 'Price per hour', value: `₱${slot().productPrice.toFixed(2)}` },
+                                                        ]}
+                                                        total={totalPrice.toFixed(2).toString()}
+                                                        onBook={() => handleBookNow(hours, slot())}
+                                                    />
+                                                </>
+                                            );
+                                        }}
+                                    </Show>
+                                </div>
+                            </div>
+
+                            {/* Sidebar */}
+                            <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
+                                <Show when={products()?.length}>
+                                    <div class="flex flex-col w-full gap-3">
+                                        <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">
+                                            Operating Hours
+                                        </h3>
+                                        <For each={products()}>
+                                            {(product) => (
+                                                <div class="flex justify-between items-center w-full pb-2">
+                                                    <span class="font-bold">
+                                                        {product.name}
+                                                    </span>
+
+                                                    <span class="text-right">
+                                                        {product.description}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </For>
+                                    </div>
+                                </Show>
+
+                                <InfoPanel
+                                    email="sampleemail@gmail.com"
+                                    address="Address, address, address"
+                                    contact="+63 991 123 4561"
+                                    facilities={["Facility1", "Facility2"]}
+                                    rules={["rule1", "rule1"]}
+                                />
+                            </aside>
+                        </div>
+                        <ConfirmationModal
+                            isOpen={isOpen()}
+                            title="Delete Item?"
+                            message="Are you sure you want to delete this item? This action cannot be undone."
+                            confirmText="Yes, Delete"
+                            cancelText="Cancel"
+                            onConfirm={handleDelete}
+                            onCancel={() => setIsOpen(false)}
+                        />
+                    </Show>
+                </div>
+            </main>
+        </Show>
     )
 }

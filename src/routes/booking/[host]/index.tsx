@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { useParams } from "@solidjs/router";
+import { redirect, useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
@@ -24,6 +24,16 @@ const DateTimePickerClient = clientOnly(
 
 export default function Host() {
     const session = useSession();
+    const navigate = useNavigate();
+
+    createEffect(() => {
+        const user = session()?.data?.user;
+
+        if (user && user.role == "ADMIN") {
+            navigate("admin");
+        }
+    });
+
     const params = useParams();
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
@@ -181,6 +191,11 @@ export default function Host() {
             productPrice: number;
         }) => {
         try {
+            if (userId() === "") {
+                navigate("/login");
+                return;
+            }
+
             const transaction = await createNewTransaction({
                 productId: slot.productId,
                 userId: userId(),
