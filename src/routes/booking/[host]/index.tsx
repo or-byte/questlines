@@ -29,8 +29,8 @@ export default function Host() {
     createEffect(() => {
         const user = session()?.data?.user;
 
-        if (user && user.role == "ADMIN") {
-            navigate("admin");
+        if (user && user.role === "ADMIN") {
+            navigate("admin"); 
         }
     });
 

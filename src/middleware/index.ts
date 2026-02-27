@@ -11,9 +11,9 @@ export default createMiddleware({
     const user = session?.user;
     const pathname = new URL(event.request.url).pathname;
 
-    if (pathname.endsWith("/admin") && user.role !== "ADMIN") {
+    if (pathname.endsWith("/admin") && user?.role !== "ADMIN") {
+      console.log("Redirecting non-admin user...");
       const base = pathname.replace("/admin", "");
-      console.log("redirecting...")
       return redirect(base);
     }
   },
