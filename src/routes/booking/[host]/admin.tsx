@@ -24,7 +24,7 @@ const DateTimePickerClient = clientOnly(
 export default function Host() {
     const session = useSession();
     const params = useParams();
-    const navigate = useNavigate();    
+    const navigate = useNavigate();
 
     createEffect(() => {
         const user = session()?.data?.user;
@@ -64,6 +64,8 @@ export default function Host() {
         productId: number;
         productName: string;
         productPrice: number;
+        transactionId?: number;
+        transactionUser?: string;
     }[]>([]);
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
@@ -140,22 +142,35 @@ export default function Host() {
     );
 
     createEffect(() => {
-        const currentSlots = slots();
         const txs = transactions() || [];
         const newAvailability: Record<string, boolean> = {};
         const date = selectedDate();
-        const timeSlots = [];
 
-        allSchedules().map((schedule) => {
-            const formatted = formatSchedules(schedule);
-            if (formatted.start.toDateString() === date.toDateString()) {
-                timeSlots.push(formatted)
-            }
-        });
+        const timeSlots = allSchedules()
+            .map(schedule => formatSchedules(schedule))
+            .filter(formatted =>
+                formatted.start.toDateString() === date.toDateString()
+            )
+            .map(formatted => {
+                const matchedTx = txs.find(tx => {
+                    const [startRaw, endRaw] = tx.reservedTime.split(",");
+                    const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
+                    const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+
+                    return formatted.start < txEnd && formatted.end > txStart;
+                });
+
+
+                return {
+                    ...formatted,
+                    transactionId: matchedTx?.id,
+                    transactionUser: matchedTx?.userName
+                };
+            });
 
         setSlotsForDay(timeSlots);
 
-        currentSlots.forEach(slot => {
+        timeSlots.forEach(slot => {
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
             const isBooked = txs.some(tx => {
@@ -301,18 +316,17 @@ export default function Host() {
                                                 <For each={slotsForDay()}>
                                                     {(slot) => {
                                                         const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                                                        return (
-                                                            <TimeSlot
-                                                                time={slot.label}
-                                                                price={slot.productPrice.toFixed(2)}
-                                                                isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
-                                                                    && selectedSlot()?.productId === slot.productId}
-                                                                isAvailable={!availability()[key]}
-                                                                onClick={[setSelectedSlot, slot]}
-                                                                isAdmin={true}
-                                                                onDelete={() => onClickDelete(slot.productId)}
-                                                            />
-                                                        );
+                                                        return <TimeSlot
+                                                            time={slot.label}
+                                                            price={slot.productPrice.toFixed(2)}
+                                                            isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
+                                                                && selectedSlot()?.productId === slot.productId}
+                                                            isAvailable={!availability()[key]}
+                                                            onClick={[setSelectedSlot, slot]}
+                                                            isAdmin={true}
+                                                            onDelete={() => onClickDelete(slot.transactionId)}
+                                                            user={slot.transactionUser}
+                                                        />
                                                     }}
                                                 </For>
                                             </ul>
