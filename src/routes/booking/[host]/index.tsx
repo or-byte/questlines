@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { useParams } from "@solidjs/router";
+import { redirect, useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
@@ -13,6 +13,9 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import { createPaymongoCheckout } from "~/lib/paymongo";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
+import { useSession } from "~/lib/auth";
+import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -20,6 +23,17 @@ const DateTimePickerClient = clientOnly(
 );
 
 export default function Host() {
+    const session = useSession();
+    const navigate = useNavigate();
+
+    createEffect(() => {
+        const user = session()?.data?.user;
+
+        if (user && user.role === "ADMIN") {
+            navigate("admin"); 
+        }
+    });
+
     const params = useParams();
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
@@ -28,6 +42,7 @@ export default function Host() {
     const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
     const [isChangingVenue, setIsChangingVenue] = createSignal(false);
     const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
+    const [userId, setUserId] = createSignal<string>("")
     const [slotsForDay, setSlotsForDay] = createSignal<{
         label: string;
         start: Date;
@@ -123,7 +138,7 @@ export default function Host() {
         { initialValue: [] }
     );
 
-    createEffect(() => {
+    createEffect(async () => {
         const currentSlots = slots();
         const txs = transactions() || [];
         const newAvailability: Record<string, boolean> = {};
@@ -152,13 +167,19 @@ export default function Host() {
         });
 
         setAvailability(newAvailability);
-    });
 
-    createEffect(() => {
         if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
             setIsChangingVenue(false);
         }
     });
+
+    createEffect(async () => {
+        if (session().data) {
+            const email = session().data?.user.email || "";
+            const id = await getUserIdByEmail(email) || "";
+            setUserId(id);
+        }
+    })
 
     const handleBookNow = async (
         quantity: number,
@@ -170,13 +191,18 @@ export default function Host() {
             productPrice: number;
         }) => {
         try {
+            if (userId() === "") {
+                navigate("/login");
+                return;
+            }
+
             const transaction = await createNewTransaction({
                 productId: slot.productId,
-                userId: 1, // TODO: replace with actual user ID from auth
+                userId: userId(),
                 quantity,
                 reservedTimeStart: slot.start,
                 reservedTimeEnd: slot.end,
-                status: "PENDING"
+                status: TransactionStatus.PENDING
             });
 
             if (!transaction?.id) throw new Error("Failed to create transaction: ");

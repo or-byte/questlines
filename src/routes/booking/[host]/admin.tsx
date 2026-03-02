@@ -1,9 +1,9 @@
 import { Title } from "@solidjs/meta";
-import { useParams } from "@solidjs/router";
+import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
-import { formatSchedules, FormattedSchedule, getSchedules } from "~/lib/schedule";
+import { formatSchedules, getSchedules } from "~/lib/schedule";
 import { createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
@@ -13,13 +13,18 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
+import { TransactionStatus } from "@prisma/client";
+import { getUserIdByEmail } from "~/lib/user";
+import { useSession } from "~/lib/auth";
 
 const DateTimePickerClient = clientOnly(
     () => import("~/components/datetimepicker/DateTimePickerClient"),
     { fallback: <div>Loading date picker...</div> }
 );
 export default function Host() {
+    const session = useSession();
     const params = useParams();
+
     const imageUrls = [
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
         'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
@@ -50,6 +55,8 @@ export default function Host() {
         productId: number;
         productName: string;
         productPrice: number;
+        transactionId?: number;
+        transactionUser?: string;
     }[]>([]);
     const handleSelectVenue = (id: number) => {
         if (venueId() === id) return;
@@ -126,22 +133,35 @@ export default function Host() {
     );
 
     createEffect(() => {
-        const currentSlots = slots();
         const txs = transactions() || [];
         const newAvailability: Record<string, boolean> = {};
         const date = selectedDate();
-        const timeSlots = [];
 
-        allSchedules().map((schedule) => {
-            const formatted = formatSchedules(schedule);
-            if (formatted.start.toDateString() === date.toDateString()) {
-                timeSlots.push(formatted)
-            }
-        });
+        const timeSlots = allSchedules()
+            .map(schedule => formatSchedules(schedule))
+            .filter(formatted =>
+                formatted.start.toDateString() === date.toDateString()
+            )
+            .map(formatted => {
+                const matchedTx = txs.find(tx => {
+                    const [startRaw, endRaw] = tx.reservedTime.split(",");
+                    const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
+                    const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+
+                    return formatted.start < txEnd && formatted.end > txStart;
+                });
+
+
+                return {
+                    ...formatted,
+                    transactionId: matchedTx?.id,
+                    transactionUser: matchedTx?.userName
+                };
+            });
 
         setSlotsForDay(timeSlots);
 
-        currentSlots.forEach(slot => {
+        timeSlots.forEach(slot => {
             const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
             const isBooked = txs.some(tx => {
@@ -180,7 +200,7 @@ export default function Host() {
             quantity: quantity,
             reservedTimeStart: slot.start,
             reservedTimeEnd: slot.end,
-            status: 'PAID'
+            status: TransactionStatus.PAID
         }
 
         try {
@@ -286,18 +306,17 @@ export default function Host() {
                                             <For each={slotsForDay()}>
                                                 {(slot) => {
                                                     const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                                                    return (
-                                                        <TimeSlot
-                                                            time={slot.label}
-                                                            price={slot.productPrice.toFixed(2)}
-                                                            isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
-                                                                && selectedSlot()?.productId === slot.productId}
-                                                            isAvailable={!availability()[key]}
-                                                            onClick={[setSelectedSlot, slot]}
-                                                            isAdmin={true}
-                                                            onDelete={() => onClickDelete(slot.productId)}
-                                                        />
-                                                    );
+                                                    return <TimeSlot
+                                                        time={slot.label}
+                                                        price={slot.productPrice.toFixed(2)}
+                                                        isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
+                                                            && selectedSlot()?.productId === slot.productId}
+                                                        isAvailable={!availability()[key]}
+                                                        onClick={[setSelectedSlot, slot]}
+                                                        isAdmin={true}
+                                                        onDelete={() => onClickDelete(slot.transactionId)}
+                                                        user={slot.transactionUser}
+                                                    />
                                                 }}
                                             </For>
                                         </ul>
