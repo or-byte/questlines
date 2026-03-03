@@ -5,7 +5,7 @@ const WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET!.trim();
 
 export async function POST({ request }: { request: Request }) {
     try {
-        const rawBody = await request.text(); 
+        const rawBody = await request.text();
         const signatureHeader = request.headers.get("paymongo-signature");
 
         console.log("paymongo-signature header:", signatureHeader);
@@ -51,10 +51,19 @@ export async function POST({ request }: { request: Request }) {
         const event = JSON.parse(rawBody);
         const session = event.data.attributes.data.attributes;
 
+        const payment = session.payments?.[0]?.attributes;
+
         const transactionId =
             session.metadata?.transactionId ||
             session.payment_intent?.attributes?.metadata?.transactionId ||
-            session.payments?.[0]?.attributes?.metadata?.transactionId;
+            payment?.metadata?.transactionId;
+
+        const paymentMethod =
+            session.payment_method_used ||    
+            payment?.source?.type ||
+            "unknown";
+
+        const amountPaid = payment?.amount != null ? payment.amount / 100 : 0;
 
         if (!transactionId) {
             console.warn("No transactionId in metadata");
@@ -64,7 +73,7 @@ export async function POST({ request }: { request: Request }) {
         if (event.data.attributes.type === "checkout_session.payment.paid") {
             await prisma.transaction.updateMany({
                 where: { id: Number(transactionId), status: "PENDING" },
-                data: { status: "PAID" },
+                data: { status: "PAID", paymentMethod: paymentMethod, amountPaid: amountPaid },
             });
             console.log("Transaction marked as PAID:", transactionId);
         }

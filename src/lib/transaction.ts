@@ -1,4 +1,4 @@
-import { TransactionStatus } from "@prisma/client";
+import { Transaction as PrismaTransaction, TransactionStatus } from "@prisma/client";
 import prisma from "./prisma";
 
 export type TransactionFormData = {
@@ -59,6 +59,36 @@ export const updateTransactionStatus = async (id: number, status: TransactionSta
         `;
 }
 
+export const getTransactionPaid = async (id: number) => {
+    "use server";
+
+    const result = await prisma.transaction.findFirst({
+        where: {
+            id,
+            status: TransactionStatus.PAID
+        },
+        select: {
+            id: true,
+            paymentMethod: true,
+            amountPaid: true,
+            user: {
+                select: {
+                    email: true
+                }
+            }
+        }
+    });
+
+    if (!result) return null;
+
+    return {
+        id: result.id,
+        paymentMethod: result.paymentMethod,
+        email: result.user.email,
+        amountPaid: Number(result.amountPaid)
+    };
+};
+
 export const getTransactionsForDay = async (
     productId: number,
     dayStart: Date,
@@ -66,8 +96,8 @@ export const getTransactionsForDay = async (
 ): Promise<{
     id: number,
     reservedTime: string,
-     userName: string,
-     userEmail: string
+    userName: string,
+    userEmail: string
 }[]> => {
     "use server"
 
