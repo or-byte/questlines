@@ -13,7 +13,7 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import { createPaymongoCheckout } from "~/lib/paymongo";
 import { clientOnly } from "@solidjs/start";
-import { useSession } from "~/lib/auth";
+import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 
 const DateTimePickerClient = clientOnly(

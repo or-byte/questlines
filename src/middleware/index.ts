@@ -1,5 +1,5 @@
 import { createMiddleware } from "@solidjs/start/middleware";
-import { auth } from "~/lib/auth";
+import { auth } from "~/lib/server/auth";
 import { redirect } from "@solidjs/router";
 
 export default createMiddleware({
