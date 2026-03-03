@@ -28,7 +28,7 @@ export async function createPaymongoCheckout(
                             quantity,
                         },
                     ],
-                    success_url: `${process.env.ORIGIN}/success`,
+                    success_url: `${process.env.ORIGIN}/success?t=${transactionId}`,
                     cancel_url: `${process.env.ORIGIN}/cancel`,
                     metadata: {
                         transactionId: transactionId.toString()
