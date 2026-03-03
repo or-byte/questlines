@@ -1,4 +1,3 @@
-
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
@@ -28,7 +27,7 @@ export const auth = betterAuth({
 import { createAuthClient } from "better-auth/solid";
 
 const authClient = createAuthClient({
-  baseURL: "http://localhost:3000"
+  baseURL: process.env.ORIGIN
 });
 
 export const signInWithGoogle = async () => {
