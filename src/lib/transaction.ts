@@ -1,23 +1,29 @@
-import { Transaction as PrismaTransaction, TransactionStatus } from "@prisma/client";
 import prisma from "./prisma";
 
+// Client side copy of of @prisma/client `TransactionStatus`
+export const TransactionStatus = {
+  PENDING: "PENDING",
+  PAID: "PAID",
+  FAILED: "FAILED",
+} as const;
+
 export type TransactionFormData = {
-    productId: number,
-    userId: string,
-    quantity: number
-    reservedTimeStart: Date,
-    reservedTimeEnd: Date,
-    status: TransactionStatus
+  productId: number,
+  userId: string,
+  quantity: number
+  reservedTimeStart: Date,
+  reservedTimeEnd: Date,
+  status: string
 }
 
 export const createNewTransaction = async (form: TransactionFormData) => {
-    "use server";
-    const { productId, userId, quantity, reservedTimeStart, reservedTimeEnd, status } = form;
+  "use server";
+  const { productId, userId, quantity, reservedTimeStart, reservedTimeEnd, status } = form;
 
-    const start = new Date(reservedTimeStart);
-    const end = new Date(reservedTimeEnd);
+  const start = new Date(reservedTimeStart);
+  const end = new Date(reservedTimeEnd);
 
-    const result = await prisma.$queryRaw`
+  const result = await prisma.$queryRaw`
             INSERT INTO "Transaction" 
                 ("productId", "userId", "quantity", "reservedTime", "status")
             VALUES
@@ -37,15 +43,15 @@ export const createNewTransaction = async (form: TransactionFormData) => {
                 "status"
         `
 
-    if (Array.isArray(result)) return result[0];
+  if (Array.isArray(result)) return result[0];
 
-    throw new Error("Failed to return result response");
+  throw new Error("Failed to return result response");
 }
 
 export const updateTransactionStatus = async (id: number, status: TransactionStatus) => {
-    "use server";
+  "use server";
 
-    return await prisma.$queryRaw`
+  return await prisma.$queryRaw`
             UPDATE "Transaction"
             SET "status" = ${status}::"TransactionStatus"
             WHERE "id" = ${id}
@@ -60,48 +66,48 @@ export const updateTransactionStatus = async (id: number, status: TransactionSta
 }
 
 export const getTransactionPaid = async (id: number) => {
-    "use server";
+  "use server";
 
-    const result = await prisma.transaction.findFirst({
-        where: {
-            id,
-            status: TransactionStatus.PAID
-        },
+  const result = await prisma.transaction.findFirst({
+    where: {
+      id,
+      status: TransactionStatus.PAID
+    },
+    select: {
+      id: true,
+      paymentMethod: true,
+      amountPaid: true,
+      user: {
         select: {
-            id: true,
-            paymentMethod: true,
-            amountPaid: true,
-            user: {
-                select: {
-                    email: true
-                }
-            }
+          email: true
         }
-    });
+      }
+    }
+  });
 
-    if (!result) return null;
+  if (!result) return null;
 
-    return {
-        id: result.id,
-        paymentMethod: result.paymentMethod,
-        email: result.user.email,
-        amountPaid: Number(result.amountPaid)
-    };
+  return {
+    id: result.id,
+    paymentMethod: result.paymentMethod,
+    email: result.user.email,
+    amountPaid: Number(result.amountPaid)
+  };
 };
 
 export const getTransactionsForDay = async (
-    productId: number,
-    dayStart: Date,
-    dayEnd: Date
+  productId: number,
+  dayStart: Date,
+  dayEnd: Date
 ): Promise<{
-    id: number,
-    reservedTime: string,
-    userName: string,
-    userEmail: string
+  id: number,
+  reservedTime: string,
+  userName: string,
+  userEmail: string
 }[]> => {
-    "use server"
+  "use server"
 
-    return await prisma.$queryRaw<{ id: number, reservedTime: string, userName: string, userEmail: string }[]>`
+  return await prisma.$queryRaw<{ id: number, reservedTime: string, userName: string, userEmail: string }[]>`
             SELECT 
                 t."id",
                 t."reservedTime"::text, 
