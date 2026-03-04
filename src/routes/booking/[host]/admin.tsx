@@ -14,8 +14,9 @@ import InfoPanel from "~/components/panel/InfoPanel";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
 import { TransactionStatus } from "@prisma/client";
-import { getUserIdByEmail } from "~/lib/user";
 import { useSession } from "~/lib/client/auth";
+import { Skeleton } from "@kobalte/core/skeleton";
+import HostSkeleton from "~/components/skeleton/HostSkeleton";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -31,7 +32,6 @@ export default function Host() {
   ]; //static
   const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
   const [transactionToDelete, setTransactionToDelete] = createSignal<number | null>(null);
-  const [isChangingVenue, setIsChangingVenue] = createSignal(false);
   const [selectedSlot, setSelectedSlot] = createSignal<{
     label: string;
     start: Date;
@@ -60,15 +60,14 @@ export default function Host() {
   }[]>([]);
   const handleSelectVenue = (id: number) => {
     if (venueId() === id) return;
-    setIsChangingVenue(true);
     setVenueId(id);
     setSelectedCourtId(id);
     setSelectedSlot(null);
   };
 
   const [allSchedules] = createResource(
-    () => ({ venueId: venueId(), date: selectedDate() }),
-    async ({ venueId, date }) => {
+    () => ({ venueId: venueId() }),
+    async ({ venueId }) => {
       if (!venueId) return [];
 
       const products = await getProductsByVenueId(venueId);
@@ -95,7 +94,6 @@ export default function Host() {
     productPrice: number;
     transactionId?: number;
   }[]>((prev) => {
-    if (isChangingVenue()) return [];
     if (allSchedules.loading) {
       return prev || [];
     }
@@ -176,11 +174,6 @@ export default function Host() {
     setAvailability(newAvailability);
   });
 
-  createEffect(() => {
-    if (!allSchedules.loading && !transactions.loading && isChangingVenue()) {
-      setIsChangingVenue(false);
-    }
-  });
 
   const handleBookNow = async (
     quantity: number,
@@ -248,25 +241,36 @@ export default function Host() {
       <Title>Booking</Title>
       <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
         <Show
-          when={!host.loading && host()}
+          when={!host.loading && !venues.loading}
           fallback={
-            <div class="flex justify-center items-center min-h-screen">
-              <div class="spinner"></div>
+            <div class="min-h-screen py-10">
+              <HostSkeleton />
             </div>
-          }>
+          }
+        >
+          {/* Host Title */}
           <h1 class="text-[var(--color-text-1)] text-2xl sm:text-3xl lg:text-4xl text-justify">
             {host()?.name}
           </h1>
+
+          {/* Carousel */}
           <div class="mt-4 sm:mt-6 lg:mt-[20px]">
-            <Carousel images={imageUrls} />
+            <Show when={imageUrls.length} fallback={<Skeleton class="w-full h-64 sm:h-96 rounded-xl" />}>
+              <Carousel images={imageUrls} />
+            </Show>
           </div>
+
           <div class="flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-20 items-start mt-4 sm:mt-6 lg:mt-[20px]">
-            {/* Main content */}
+            {/* Main Content */}
             <div class="flex-1 w-full min-w-0 space-y-6 sm:space-y-8 lg:space-y-10">
-              <Show when={venues()}>
-                <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
-                  <For each={venues()}>
-                    {(v) => (
+
+              {/* Court Cards */}
+              <div class="flex flex-col gap-3 sm:gap-4 lg:gap-[20px] w-full">
+                <For each={venues.loading ? Array(3) : venues()}>
+                  {(v) =>
+                    venues.loading ? (
+                      <Skeleton class="skeleton w-full h-20 rounded-lg" />
+                    ) : (
                       <CourtCard
                         title={v.name}
                         thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
@@ -274,10 +278,12 @@ export default function Host() {
                         onClick={[handleSelectVenue, v.id]}
                         status="open"
                       />
-                    )}
-                  </For>
-                </div>
-              </Show>
+                    )
+                  }
+                </For>
+              </div>
+
+              {/* Date Picker */}
               <Show when={selectedCourtId() !== 0}>
                 <div class="flex justify-center w-full">
                   <DateTimePickerClient
@@ -288,88 +294,104 @@ export default function Host() {
                 </div>
               </Show>
 
+              {/* Time Slots / Upcoming Schedules */}
               <div>
-                <Show
-                  when={!isChangingVenue() && !allSchedules.loading && !transactions.loading}
-                  fallback={
-                    <div class="flex justify-center py-12">
-                      <div class="spinner"></div>
-                    </div>
-                  }
-                >
-                  <Show when={slots().length}>
-                    <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
-                      Upcoming Schedules for{" "}
-                      {venues()?.find(v => v.id === venueId())?.slug || "Selected Venue"}
-                    </h2>
-                    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
-                      <For each={slotsForDay()}>
-                        {(slot) => {
-                          const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-                          return <TimeSlot
-                            time={slot.label}
-                            price={slot.productPrice.toFixed(2)}
-                            isSelected={selectedSlot()?.start.getTime() === slot.start.getTime()
-                              && selectedSlot()?.productId === slot.productId}
-                            isAvailable={!availability()[key]}
-                            onClick={[setSelectedSlot, slot]}
-                            isAdmin={true}
-                            onDelete={() => onClickDelete(slot.transactionId)}
-                            user={slot.transactionUser}
-                          />
-                        }}
-                      </For>
-                    </ul>
+                <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
+                  <Show when={selectedCourtId()}>
+                    Upcoming Schedules for {" "}
+                    {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
                   </Show>
-                </Show>
+                </h2>
 
-                <Show when={selectedSlot()}>
-                  {(slot) => {
-                    const hours =
-                      (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
-                    const totalPrice = slot().productPrice * hours;
-
-                    return (
-                      <>
-                        <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
-                        <BookingSummary
-                          rows={[
-                            { label: 'Schedule', value: slot().label },
-                            { label: 'Price per hour', value: `₱${slot().productPrice.toFixed(2)}` },
-                          ]}
-                          total={totalPrice.toFixed(2).toString()}
-                          onBook={() => handleBookNow(hours, slot())}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
+                  <For each={allSchedules.loading ? Array(10) : slotsForDay()}>
+                    {(slot) =>
+                      allSchedules.loading || transactions.loading ? (
+                        <Skeleton
+                          class="flex flex-col items-start gap-3 sm:gap-4 lg:gap-[20px] w-full min-w-0 p-4"
+                          radius={5}
+                          style={{
+                            background: "#F7F3E4",
+                          }}
+                        >
+                          {/* Time */}
+                          <Skeleton class="skeleton" height={16} radius={5} style={{ width: "67%" }} />
+                          {/* Price */}
+                          <Skeleton class="skeleton gap-1" height={16} radius={5} style={{ width: "20%" }} />
+                          {/* Availability Badge */}
+                          <Skeleton class="skeleton" height={16} radius={5} style={{ width: "25%" }} />
+                        </Skeleton>
+                      ) : (
+                        <TimeSlot
+                          time={slot.label}
+                          price={slot.productPrice.toFixed(2)}
+                          isSelected={
+                            selectedSlot()?.start.getTime() === slot.start.getTime() &&
+                            selectedSlot()?.productId === slot.productId
+                          }
+                          isAvailable={
+                            transactions.loading || !availability()[`${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`]
+                          }
+                          onClick={[setSelectedSlot, slot]}
+                          isAdmin={true}
+                          onDelete={() => onClickDelete(slot.transactionId)}
+                          user={slot.transactionUser}
                         />
-                      </>
-                    );
-                  }}
-                </Show>
+                      )
+                    }
+                  </For>
+                </div>
               </div>
+
+              {/* Booking Summary */}
+              <Show when={selectedSlot()}>
+                {(slot) => {
+                  const hours = (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
+                  const totalPrice = slot().productPrice * hours;
+
+                  return (
+                    <>
+                      <div class="border-t border-neutral-300 pt-4 flex items-center justify-between my-4 sm:my-6" />
+                      <BookingSummary
+                        rows={[
+                          { label: "Schedule", value: slot().label },
+                          { label: "Price per hour", value: `₱${slot().productPrice.toFixed(2)}` },
+                        ]}
+                        total={totalPrice.toFixed(2).toString()}
+                        onBook={() => handleBookNow(hours, slot())}
+                      />
+                    </>
+                  );
+                }}
+              </Show>
+
             </div>
 
             {/* Sidebar */}
             <aside class="w-full lg:w-[490px] shrink-0 space-y-6 sm:space-y-8 lg:space-y-10 lg:sticky lg:top-8">
-              <Show when={products()?.length}>
-                <div class="flex flex-col w-full gap-3">
-                  <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">
-                    Operating Hours
-                  </h3>
-                  <For each={products()}>
-                    {(product) => (
+              {/* Operating Hours */}
+              <div class="flex flex-col w-full gap-3">
+                <Show when={products.loading || (products() && products().length > 0)}>
+                  <h3 class="text-[var(--color-text-1)] text-lg sm:text-xl">Operating Hours</h3>
+                </Show>
+                <For each={products.loading ? Array(3) : products()}>
+                  {(product) =>
+                    products.loading ? (
                       <div class="flex justify-between items-center w-full pb-2">
-                        <span class="font-bold">
-                          {product.name}
-                        </span>
-
-                        <span class="text-right">
-                          {product.description}
-                        </span>
+                        <Skeleton class="skeleton" height={24} radius={6} style={{ width: "33%" }} />
+                        <Skeleton class="skeleton" height={24} radius={6} style={{ width: "33%" }} />
                       </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
+                    ) : (
+                      <div class="flex justify-between items-center w-full pb-2">
+                        <span class="font-bold">{product.name}</span>
+                        <span class="text-right">{product.description}</span>
+                      </div>
+                    )
+                  }
+                </For>
+              </div>
 
+              {/* Info Panel */}
               <InfoPanel
                 email="sampleemail@gmail.com"
                 address="Address, address, address"

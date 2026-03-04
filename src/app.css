@@ -77,6 +77,12 @@ p {
   }
 }
 
+@media (min-width: 640px) {
+  .skeleton {
+    height: 24rem;
+  }
+}
+
 @layer components {
   .btn {
     @apply py-2 px-6 bg-[var(--color-accent-1)] rounded-[10px] cursor-pointer transition-colors duration-200 text-white;
@@ -89,7 +95,7 @@ p {
   .btn:disabled {
     @apply bg-[var(--color-disabled)] text-[var(--color-footer)];
   }
-  
+
   .btn:disabled:hover {
     @apply cursor-not-allowed;
   }
@@ -124,5 +130,61 @@ p {
 
   .spinner {
     @apply w-8 h-8 border-4 border-[var(--color-footer)]/30 border-t-[var(--color-accent-1)] rounded-full animate-spin
+  }
+
+  @keyframes skeleton-fade {
+
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .skeleton {
+    height: auto;
+    width: 100%;
+    position: relative;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  .skeleton[data-animate="true"]::after {
+    animation: skeleton-fade 1500ms linear infinite;
+  }
+
+  .skeleton[data-visible="true"] {
+    overflow: hidden;
+  }
+
+  .skeleton[data-visible="true"]::before {
+    position: absolute;
+    content: "";
+    inset: 0;
+    z-index: 10;
+    background-color: white;
+  }
+
+  .skeleton[data-visible="true"]::after {
+    position: absolute;
+    content: "";
+    inset: 0;
+    z-index: 11;
+    background-color: gray;
+  }
+
+  .multiple-root {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .multiple-profile {
+    display: flex;
+    gap: 10px;
+    align-items: center;
   }
 }
