@@ -27,38 +27,53 @@ npm run dev -- --open
 
 Payment providers like PayMongo require a public HTTPS URL for webhooks.
 ngrok creates a secure a public tunnel:
+
 ```
 https://abc123.ngrok-free.app
 ```
+
 that forwards to:
+
 ```
 http://localhost:3000
 ```
 
 ### Setup
+
 1. Install:
+
 ```bash
 npm install -g ngrok
 ```
+
 2. Authenticate:
+
 ```bash
 ngrok config add-authtoken YOUR_TOKEN
 ```
+
 3. Start tunnnel:
+
 ```bash
 ngrok http 3000
 ```
+
 You'll see:
+
 ```bash
 Forwarding https://abc123.ngrok-free.app -> http://localhost:3000
 ```
+
 4. In PayMongo Dashboard -> Webhooks:
+
 ```
 https://abc123.ngrok-free.app/api/webhooks/paymongo
 ```
+
 This matches the API route.
 
 ### Full Local Testing Flow
+
 1. User checksout
 2. PayMongo checkout page opens
 3. User completes payment
@@ -67,19 +82,25 @@ This matches the API route.
 6. SolidJS webhook updates DB
 
 ### Debugging Tips
+
 You can view ngrok requests in:
+
 ```
 http://127.0.0.1:4040
 ```
+
 You can:
+
 - Inspect request body
 - Replay webhook
 - See response status
 
 ### Production Notes
+
 Do NOT use ngrok in production.
 
 Instead:
+
 - Use real HTTPS domain
 - Configure webhook there
 

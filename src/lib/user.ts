@@ -4,12 +4,12 @@ import prisma from "./prisma";
 export type User = PrismaUser;
 
 export const getUserIdByEmail = async (email: string): Promise<string | null> => {
-    "use server"
+  "use server"
 
-    const user = await prisma.user.findUnique({
-        where: { email: email },
-        select: { id: true }
-    });
+  const user = await prisma.user.findUnique({
+    where: { email: email },
+    select: { id: true }
+  });
 
-    return user?.id ?? null;
+  return user?.id ?? null;
 };

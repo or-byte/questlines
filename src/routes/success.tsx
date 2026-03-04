@@ -6,27 +6,27 @@ import PaymentResponse from "~/components/response/PaymentResponse";
 import { getTransactionPaid } from "~/lib/transaction";
 
 export default function NotFound() {
-    const [searchParams] = useSearchParams();
-    const transactionId = searchParams.t;
+  const [searchParams] = useSearchParams();
+  const transactionId = searchParams.t;
 
-    const [transaction] = createResource(Number(transactionId), getTransactionPaid);
+  const [transaction] = createResource(Number(transactionId), getTransactionPaid);
 
-    return (
-        <main>
-            <Title>Success</Title>
-            <HttpStatusCode code={404} />
-            <Show when={transaction.state === "ready" && !transaction()}>
-                <Navigate href="/404" />
-            </Show>
-            <Show when={transaction()}>
-                <PaymentResponse
-                    message="Payment successful!"
-                    email={transaction()?.email ?? "unknown"}
-                    amount={transaction()?.amountPaid.toString() ?? "0.0"}
-                    currency="₱"
-                    paymentMethod={transaction()?.paymentMethod.toString() ?? "unknown"}
-                />
-            </Show>
-        </main>
-    );
+  return (
+    <main>
+      <Title>Success</Title>
+      <HttpStatusCode code={404} />
+      <Show when={transaction.state === "ready" && !transaction()}>
+        <Navigate href="/404" />
+      </Show>
+      <Show when={transaction()}>
+        <PaymentResponse
+          message="Payment successful!"
+          email={transaction()?.email ?? "unknown"}
+          amount={transaction()?.amountPaid.toString() ?? "0.0"}
+          currency="₱"
+          paymentMethod={transaction()?.paymentMethod.toString() ?? "unknown"}
+        />
+      </Show>
+    </main>
+  );
 }
