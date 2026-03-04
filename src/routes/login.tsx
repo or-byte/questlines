@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import { createEffect, Show } from "solid-js";
-import { signInWithGoogle, signOut, useSession } from "~/lib/auth";
+import { signInWithGoogle, signOut, useSession } from "~/lib/client/auth";
 
 async function signIn(): Promise<void> {
   try {

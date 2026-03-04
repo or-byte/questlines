@@ -23,9 +23,9 @@ export default function ConfirmationModal(props: ConfirmationModalProps) {
           class="flex flex-col gap-[20px] bg-[var(--color-bg)] rounded-lg shadow-lg max-w-md w-full p-6 relative "
           onClick={(e) => e.stopPropagation()}
         >
-            <div class="flex justify-center">
-                <AiOutlineCloseCircle size={60} color="var(--color-accent-1)"/>
-            </div>
+          <div class="flex justify-center">
+            <AiOutlineCloseCircle size={60} color="var(--color-accent-1)" />
+          </div>
           {/* Title */}
           <h3>
             {props.title ?? "Confirm Action"}

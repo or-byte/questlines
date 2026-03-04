@@ -11,7 +11,7 @@ export default function App() {
       root={props => (
         <MetaProvider>
           <Title>Questlines</Title>
-          <TopNav/>
+          <TopNav />
           <Suspense>{props.children}</Suspense>
         </MetaProvider>
       )}

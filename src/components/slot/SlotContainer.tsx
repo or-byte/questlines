@@ -1,18 +1,18 @@
 import { ParentProps, JSX, Show } from "solid-js";
 
 type SlotContainerProps = ParentProps<{
-    isSelected: boolean;
-    isAvailable: boolean;
-    isAdmin: boolean;
-    onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
-    onDelete?: JSX.EventHandler<HTMLButtonElement, MouseEvent>;
+  isSelected: boolean;
+  isAvailable: boolean;
+  isAdmin: boolean;
+  onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
+  onDelete?: JSX.EventHandler<HTMLButtonElement, MouseEvent>;
 }>;
 
 export default function SlotContainer(props: SlotContainerProps) {
-    return (
-        <div
-            onClick={props.onClick}
-            class={`
+  return (
+    <div
+      onClick={props.onClick}
+      class={`
                 relative group
                 flex items-center gap-3 sm:gap-5 lg:gap-[30px] 
                 py-3 sm:py-4 lg:py-5 
@@ -23,14 +23,14 @@ export default function SlotContainer(props: SlotContainerProps) {
                 bg-[var(--color-bg-2)]
                 border
                 ${props.isAvailable || props.isAdmin
-                    ? "hover:border-[var(--color-accent-1)] active:scale-[0.98]"
-                    : "opacity-50 cursor-not-allowed pointer-events-none"}
+          ? "hover:border-[var(--color-accent-1)] active:scale-[0.98]"
+          : "opacity-50 cursor-not-allowed pointer-events-none"}
                 ${props.isSelected
-                    ? "border-[var(--color-accent-1)]"
-                    : "border-transparent"}
+          ? "border-[var(--color-accent-1)]"
+          : "border-transparent"}
             `}
-        >
-            {props.children}
-        </div>
-    );
+    >
+      {props.children}
+    </div>
+  );
 }

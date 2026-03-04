@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { useSession } from "~/lib/auth";
+import { useSession } from "~/lib/client/auth";
 
 export default function Home() {
   const session = useSession();
