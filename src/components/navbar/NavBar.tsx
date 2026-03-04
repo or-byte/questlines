@@ -13,39 +13,51 @@ export default function NavBar() {
   const session = useSession();
   const navigate = useNavigate();
   const [open, setOpen] = createSignal(false);
+  const toggleMenu = () => setOpen(!open());
 
   const setTrue = (value: boolean) => setOpen(value);
   const logIn = (path: string) => {
     navigate(path);
+    setOpen(false);
   };
 
   return (
     <>
       <nav class="fixed top-0 left-0 w-full px-[30px] py-3 flex items-center justify-between z-50 bg-[var(--color-bg)]">
-        <img src="/images/orbyte_logo.png" alt="logo" class="w-[96px] md:w-[129px] cursor-pointer" onClick={[logIn, "/"]} />
-        <div>
-          <For each={menuItems} fallback={<div> Loading Items . . .</div>}>
-            {(item) =>
-              <A href={item.href}
-                class="
-                                    cursor-pointer
-                                    transition-colors duration-200
-                                    text-[var(--color-text-1)]
-                                    hover:text-[var(--color-accent-3)]/70
-                                    navbar">
+        <img
+          src="/images/orbyte_logo.png"
+          alt="logo"
+          class="w-[96px] md:w-[129px] cursor-pointer"
+          onClick={[logIn, "/"]}
+        />
+
+        {/* Desktop links ONLY */}
+        <div class="hidden md:flex gap-6">
+          <For each={menuItems}>
+            {(item) => (
+              <A
+                href={item.href}
+                class="cursor-pointer transition-colors duration-200 text-[var(--color-text-1)] hover:text-[var(--color-accent-3)]/70"
+              >
                 {item.label}
-              </A>}
+              </A>
+            )}
           </For>
         </div>
+
+        {/* Desktop button ONLY */}
         <Button
           type="button"
           class="btn hidden md:inline-flex"
-          onClick={[logIn, "/login"]}>
+          onClick={[logIn, "/login"]}
+        >
           {session().data?.user ? "Sign Out" : "Log In"}
         </Button>
+
+        {/* Mobile hamburger ONLY */}
         <button
           class="md:hidden text-[var(--color-text)] text-2xl"
-          onClick={[setTrue, !open()]}
+          onClick={toggleMenu}
           aria-label={open() ? "Close menu" : "Open menu"}
           aria-expanded={open()}
         >
@@ -57,7 +69,7 @@ export default function NavBar() {
       {open() && (
         <div class={`fixed inset-0 z-40 bg-[var(--color-bg)] pt-[60px] transition-opacity duration-200 ${open() ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}>
-          <div class="flex flex-col items-start text-start gap-6 px-6 py-8 text-[var(--color-text)]">
+          <div class="flex flex-col items-start text-start gap-6 px-[30px] py-8 text-[var(--color-text)]">
             <For each={menuItems} fallback={<div> Loading Items . . .</div>}>
               {(item) =>
                 <A
