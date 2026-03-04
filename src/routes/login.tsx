@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import { createEffect, Show } from "solid-js";
-import { signInWithGoogle, signOut, useSession } from "~/lib/auth";
+import { signInWithGoogle, signOut, useSession } from "~/lib/client/auth";
 import Button from "../components/button/Button"
 
 async function signIn(): Promise<void> {
@@ -28,7 +28,7 @@ export default function About() {
 
   return (
     <Show when={!session().data?.user}>
-      <main class="flex justify-center w-full">
+      <main class="flex justify-center">
         <div class="px-6 sm:px-0 max-w-sm">
           <Button onClick={signIn} type="button" class="text-white w-full  bg-[var(--color-accent-1)] hover:bg-[var(--color-accent-2)] px-8 py-3 rounded-[10px] text-center inline-flex items-center justify-between mr-2 mb-2 cursor-pointer">
             <svg class="mr-2 -ml-1 w-4 h-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
