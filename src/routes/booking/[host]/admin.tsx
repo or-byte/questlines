@@ -4,7 +4,7 @@ import { createEffect, createResource, createSignal, For, Show, createMemo } fro
 import { getHostBySlug } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, getSchedules } from "~/lib/schedule";
-import { createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
+import { TransactionStatus, createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
 import { getVenuesByHost } from "~/lib/venue";
 import Carousel from "~/components/carousel/Carousel";
 import CourtCard from "~/components/court_card/CourtCard";
@@ -13,7 +13,6 @@ import BookingSummary from "~/components/summary/BookingSummary";
 import InfoPanel from "~/components/panel/InfoPanel";
 import ConfirmationModal from "~/components/confirmation_modal/ConfirmationModal";
 import { clientOnly } from "@solidjs/start";
-import { TransactionStatus } from "@prisma/client";
 import { useSession } from "~/lib/client/auth";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
