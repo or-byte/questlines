@@ -137,15 +137,17 @@ export default function Host() {
   );
 
   createEffect(async () => {
+    const currentTime = new Date;
     const currentSlots = slots();
     const txs = transactions() || [];
     const newAvailability: Record<string, boolean> = {};
     const date = selectedDate();
     const timeSlots = [];
 
+
     allSchedules().map((schedule) => {
       const formatted = formatSchedules(schedule);
-      if (formatted.start.toDateString() === date.toDateString()) {
+      if (formatted.start.toDateString() === date.toDateString() && currentTime < formatted.end) {
         timeSlots.push(formatted)
       }
     });
