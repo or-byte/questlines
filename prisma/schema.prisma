@@ -20,6 +20,8 @@ model User {
   updatedAt     DateTime      @updatedAt
   sessions      Session[]
   accounts      Account[]
+  credits       Int           @default(0)
+  participants  Participant[]
 
   @@map("user")
 }
@@ -43,6 +45,7 @@ model Venue {
   hostId      Int?
   host        Host?     @relation(fields: [hostId], references: [id])
   products    Product[]
+  events      Event[]
 }
 
 model Product {
@@ -82,6 +85,42 @@ model Schedule {
   endTime   DateTime
 }
 
+model Event {
+  id              Int                      @id @default(autoincrement())
+  name            String
+  description     String
+  status          EventStatus
+  maxParticipants Int
+  timeRange       Unsupported("tstzrange")
+
+  venueId   Int
+  venue     Venue    @relation(fields: [venueId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Match {
+  id              Int  @id @default(autoincrement())
+  maxParticipants Int
+  status          Int
+  stats           Json @default("{\"score\": \"0\"}")
+
+  createdAt    DateTime      @default(now())
+  endedAt      DateTime?
+  participants Participant[]
+}
+
+model Participant {
+  id       Int     @id @default(autoincrement())
+  matchId  Int
+  match    Match   @relation(fields: [matchId], references: [id])
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  isWinner Boolean @default(false)
+  team     Int
+  stats    Json    @default("{\"score\": \"0\"}")
+}
+
 enum Role {
   ADMIN
   CUSTOMER
@@ -93,6 +132,21 @@ enum TransactionStatus {
   CANCELLED
   FAILED
 }
+
+enum EventStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchStatus {
+  WAITING
+  ONGOING
+  COMPLETED
+  ABORTED
+}
+
+// AUTH
 
 model Session {
   id        String   @id
