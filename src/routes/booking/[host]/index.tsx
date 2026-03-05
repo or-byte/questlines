@@ -200,7 +200,6 @@ export default function Host() {
       });
 
       if (!transaction?.id) throw new Error("Failed to create transaction: ");
-      alert("transaction created with ID: " + transaction.id);
 
       const checkoutUrl = await createPaymongoCheckout(
         quantity,
@@ -219,7 +218,7 @@ export default function Host() {
 
     } catch (err) {
       console.error(err);
-      alert("Failed to start checkout");
+      throw new Error("Failed to start checkout");
     }
   };
 
