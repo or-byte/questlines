@@ -13,12 +13,44 @@ export type TransactionFormData = {
   quantity: number
   reservedTimeStart: Date,
   reservedTimeEnd: Date,
-  status: string
+  status: TransactionStatus
 }
 
-export const createNewTransaction = async (form: TransactionFormData) => {
+export type TransactionSuccess = {
+  id: number,
+  productId: number,
+  userId: number,
+  quantity: number,
+  reservedTime: string,
+  status: TransactionStatus
+}
+export type TransactionError = {
+  status: TransactionStatus,
+  errorCode: string,
+  msg: string,
+  context: any
+}
+
+export type TransactionResult = TransactionSuccess | TransactionError;
+
+export const createNewTransaction = async (form: TransactionFormData) : Promise<TransactionResult> => {
   "use server";
   const { productId, userId, quantity, reservedTimeStart, reservedTimeEnd, status } = form;
+
+  const userTransaction = await prisma.transaction.findFirst({
+    where: { userId: userId, status: TransactionStatus.PENDING },
+    orderBy: { createdAt: "desc" }
+  });
+
+  const expiryTime = userTransaction?.createdAt;
+  expiryTime?.setMinutes(expiryTime?.getMinutes() + 1) // one (1) minute since last transaction created
+  const currentTime = new Date();
+
+  if (currentTime < expiryTime!) {
+    const remainingTimeMs = expiryTime!.getTime() - currentTime.getTime();
+    const remainingTimeSeconds = remainingTimeMs / 1000;
+    return { status: TransactionStatus.FAILED, errorCode: "USER_TX_PENDING", msg: "User already has pending transaction.", context: remainingTimeSeconds }
+  }
 
   const start = new Date(reservedTimeStart);
   const end = new Date(reservedTimeEnd);
