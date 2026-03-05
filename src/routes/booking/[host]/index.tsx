@@ -64,7 +64,6 @@ export default function Host() {
   const [venues] = createResource(() => host()?.id, getVenuesByHost);
   const [venueId, setVenueId] = createSignal<number>(0);
   const [products] = createResource(() => venueId(), getProductsByVenueId);
-  const [availability, setAvailability] = createSignal<Record<string, boolean>>({})
 
   const handleSelectVenue = (id: number) => {
     if (venueId() === id) return;
@@ -152,21 +151,19 @@ export default function Host() {
       }
     });
 
-    setSlotsForDay(timeSlots);
+    const availableSlots = timeSlots.filter(slot => {
+      return !txs.some(tx => {
+        const times = tx.reservedTime.split(",");
+        const txStart = new Date(times[0].replace(/[\[\(]/, ""));
+        const txEnd = new Date(times[1]?.replace(/[\]\)]/, "") || txStart); // fallback to same time if single timestamp
 
-    currentSlots.forEach(slot => {
-      const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-
-      const isBooked = txs.some(tx => {
-        const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
+        // Check for overlap
         return slot.start < txEnd && slot.end > txStart;
       });
-
-      newAvailability[key] = isBooked;
     });
 
-    setAvailability(newAvailability);
+    setSlotsForDay(availableSlots);
+
   });
 
   createEffect(async () => {
@@ -326,9 +323,7 @@ export default function Host() {
                             selectedSlot()?.start.getTime() === slot.start.getTime() &&
                             selectedSlot()?.productId === slot.productId
                           }
-                          isAvailable={
-                            transactions.loading || !availability()[`${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`]
-                          }
+                          isAvailable={true}
                           onClick={[setSelectedSlot, slot]}
                           isAdmin={false}
                         />
