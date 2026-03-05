@@ -23,7 +23,7 @@ export async function POST({ request }: { request: Request }) {
     );
 
     const timestamp = elements["t"];
-    const receivedSignature = elements["v1"] || elements["te"];
+    const receivedSignature = elements["v1"] || elements["te"] || elements["li"];
 
     if (!timestamp || !receivedSignature) {
       return new Response("Invalid signature format", { status: 400 });
