@@ -24,13 +24,17 @@ export default function Carousel(props: CarouselProps) {
             transform: `translateX(-${index() * 100}%)`,
           }}
         >
-          {props.images.map((src) => (
-            <img
-              src={src}
-              alt="User Image"
-              class="w-full h-full object-cover"
-            />
-          ))}
+          <For each={props.images}>
+            {(image) => (
+              <div class="min-w-full h-[200px] sm:h-[250px] md:h-[300px]">
+                <img
+                  src={image}
+                  alt="User Image"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+            )}
+          </For>
         </div>
 
         {/* Controls */}
