@@ -6,7 +6,7 @@ export default function Home() {
 
   return (
     <main>
-      <Title></Title>
+      <Title>Questlines</Title>
       <h1>Hello, {session().data?.user.name || "Player!"} </h1>
 
     </main>
