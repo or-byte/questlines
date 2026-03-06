@@ -89,7 +89,7 @@ p {
   }
 
   .btn:disabled {
-    @apply bg-[var(--color-disabled)] text-[var(--color-footer)];
+    @apply bg-[var(--color-accent-3)];
   }
 
   .btn:disabled:hover {
@@ -125,7 +125,7 @@ p {
   }
 
   .spinner {
-    @apply w-8 h-8 border-4 border-[var(--color-footer)]/30 border-t-[var(--color-accent-1)] rounded-full animate-spin
+    @apply h-7 w-7 animate-spin rounded-full border-4 border-[var(--color-bg)] border-t-transparent
   }
 
   @keyframes skeleton-fade {
