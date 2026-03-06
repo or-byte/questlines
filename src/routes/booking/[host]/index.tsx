@@ -198,9 +198,6 @@ export default function Host() {
         status: TransactionStatus.PENDING
       });
 
-      if (!transaction?.id) throw new Error("Failed to create transaction: ");
-      alert("transaction created with ID: " + transaction.id);
-
       const checkoutUrl = await createPaymongoCheckout(
         quantity,
         transaction.id,
