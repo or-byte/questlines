@@ -17,11 +17,20 @@ import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
+import { getUpcomingEvents } from "~/lib/event";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/datetimepicker/DateTimePickerClient"),
   { fallback: <div>Loading date picker...</div> }
 );
+
+function parseTimeRange(range: string) {
+  const [startRaw, endRaw] = range.split(",");
+  const start = new Date(startRaw.replace(/[\[\(]/, ""));
+  const end = new Date(endRaw.replace(/[\]\)]/, ""));
+
+  return { start, end }
+}
 
 export default function Host() {
   const session = useSession();
@@ -40,7 +49,7 @@ export default function Host() {
     'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
     'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
   ]; //static
-  const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
+  const [selectedVenueId, setSelectedVenueId] = createSignal<number>(0);
   const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
   const [userId, setUserId] = createSignal<string>("")
   const [slotsForDay, setSlotsForDay] = createSignal<{
@@ -68,7 +77,7 @@ export default function Host() {
   const handleSelectVenue = (id: number) => {
     if (venueId() === id) return;
     setVenueId(id);
-    setSelectedCourtId(id);
+    setSelectedVenueId(id);
     setSelectedSlot(null);
   };
 
@@ -135,35 +144,72 @@ export default function Host() {
     { initialValue: [] }
   );
 
+  const [upcomingEvents] = createResource(
+    () => ({ venueId: venueId() }),
+    async ({ venueId }) => {
+      if (!venueId) return []
+
+      const events = await getUpcomingEvents(venueId);
+      return events
+    }
+  );
+
+  function generateEventSlots(event, scheduleSlots) {
+    const { start: eventStart, end: eventEnd } = parseTimeRange(event.timeRange);
+
+    const overlappingSlots = scheduleSlots.filter(
+      slot => slot.start < eventEnd && slot.end > eventStart
+    );
+
+    if (!overlappingSlots.length) return [];
+
+    const mergedSlot = {
+      start: overlappingSlots[0].start,
+      end: overlappingSlots[overlappingSlots.length - 1].end,
+      productId: overlappingSlots[0].productId,
+      productName: event.productName,
+      productPrice: event.productPrice,
+      label: `${event.name} (${overlappingSlots[0].start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${overlappingSlots[overlappingSlots.length - 1].end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
+      isEvent: true,
+      transactionId: -1,
+      transactionUser: "Event",
+    };
+
+    return [mergedSlot];
+  }
+
   createEffect(async () => {
-    const currentTime = new Date;
-    const currentSlots = slots();
+    const currentTime = new Date();
     const txs = transactions() || [];
-    const newAvailability: Record<string, boolean> = {};
     const date = selectedDate();
-    const timeSlots = [];
 
+    const scheduleSlots = allSchedules()
+      .map(formatSchedules)
+      .filter(slot =>
+        slot.start.toDateString() === date.toDateString() && currentTime < slot.end
+      )
+      .filter(slot =>
+        !txs.some(tx => {
+          const [txStartStr, txEndStr] = tx.reservedTime.split(",");
+          const txStart = new Date(txStartStr.replace(/[\[\(]/, ""));
+          const txEnd = new Date((txEndStr || txStartStr).replace(/[\]\)]/, ""));
+          return slot.start < txEnd && slot.end > txStart;
+        })
+      );
 
-    allSchedules().map((schedule) => {
-      const formatted = formatSchedules(schedule);
-      if (formatted.start.toDateString() === date.toDateString() && currentTime < formatted.end) {
-        timeSlots.push(formatted)
-      }
-    });
+    const eventSlots = (upcomingEvents() || [])
+      .map(event => generateEventSlots(event, scheduleSlots))
+      .flat();
 
-    const availableSlots = timeSlots.filter(slot => {
-      return !txs.some(tx => {
-        const times = tx.reservedTime.split(",");
-        const txStart = new Date(times[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(times[1]?.replace(/[\]\)]/, "") || txStart); // fallback to same time if single timestamp
+    const finalSlots = [
+      ...scheduleSlots.filter(slot =>
+        !eventSlots.some(event => slot.start < event.end && slot.end > event.start)
+      ),
+      ...eventSlots
+    ]
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-        // Check for overlap
-        return slot.start < txEnd && slot.end > txStart;
-      });
-    });
-
-    setSlotsForDay(availableSlots);
-
+    setSlotsForDay(finalSlots);
   });
 
   createEffect(async () => {
@@ -268,7 +314,7 @@ export default function Host() {
                       <CourtCard
                         title={v.name}
                         thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
-                        isSelected={selectedCourtId() === v.id}
+                        isSelected={selectedVenueId() === v.id}
                         onClick={[handleSelectVenue, v.id]}
                         status="open"
                       />
@@ -278,7 +324,7 @@ export default function Host() {
               </div>
 
               {/* Date Picker */}
-              <Show when={selectedCourtId() !== 0}>
+              <Show when={selectedVenueId() !== 0}>
                 <div class="flex justify-center w-full">
                   <DateTimePickerClient
                     key={venueId()}
@@ -291,7 +337,7 @@ export default function Host() {
               {/* Time Slots / Upcoming Schedules */}
               <div>
                 <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
-                  <Show when={selectedCourtId()}>
+                  <Show when={selectedVenueId()}>
                     Upcoming Schedules for {" "}
                     {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
                   </Show>

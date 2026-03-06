@@ -24,24 +24,24 @@ export const createNewTransaction = async (form: TransactionFormData) => {
   const end = new Date(reservedTimeEnd);
 
   const result = await prisma.$queryRaw`
-            INSERT INTO "Transaction" 
-                ("productId", "userId", "quantity", "reservedTime", "status")
-            VALUES
-                (
-                    ${productId},
-                    ${userId},
-                    ${quantity},
-                    tstzrange(${start}, ${end}, '[)'),
-                    ${status}::"TransactionStatus"
-                )
-            RETURNING 
-                "id",
-                "productId",
-                "userId",
-                "quantity",
-                "reservedTime"::text,
-                "status"
-        `
+    INSERT INTO "Transaction" 
+      ("productId", "userId", "quantity", "reservedTime", "status")
+    VALUES
+    (
+      ${productId},
+      ${userId},
+      ${quantity},
+      tstzrange(${start}, ${end}, '[)'),
+      ${status}::"TransactionStatus"
+    )
+    RETURNING 
+      "id",
+      "productId",
+      "userId",
+      "quantity",
+      "reservedTime"::text,
+      "status"
+    `
 
   if (Array.isArray(result)) return result[0];
 
@@ -108,15 +108,15 @@ export const getTransactionsForDay = async (
   "use server"
 
   return await prisma.$queryRaw<{ id: number, reservedTime: string, userName: string, userEmail: string }[]>`
-            SELECT 
-                t."id",
-                t."reservedTime"::text, 
-                u."name" AS "userName",
-                u."email" AS "userEmail"
-            FROM "Transaction" t
-            JOIN "user" u ON u.id = t."userId"
-            WHERE t."productId" = ${productId}
-                AND t."reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
-                AND t."status" = 'PAID'
-        `;
+    SELECT 
+      t."id",
+      t."reservedTime"::text, 
+      u."name" AS "userName",
+      u."email" AS "userEmail"
+    FROM "Transaction" t
+    JOIN "user" u ON u.id = t."userId"
+    WHERE t."productId" = ${productId}
+      AND t."reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
+      AND t."status" = 'PAID'
+  `;
 }

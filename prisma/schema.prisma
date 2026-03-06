@@ -8,20 +8,21 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  role          Role          @default(CUSTOMER)
-  transactions  Transaction[]
-  hosts         Host[]
-  name          String
-  emailVerified Boolean       @default(false)
-  image         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  credits       Int           @default(0)
-  participants  Participant[]
+  id                String             @id @default(cuid())
+  email             String             @unique
+  role              Role               @default(CUSTOMER)
+  transactions      Transaction[]
+  hosts             Host[]
+  name              String
+  emailVerified     Boolean            @default(false)
+  image             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  accounts          Account[]
+  credits           Int                @default(0)
+  participants      Participant[]
+  eventParticipants EventParticipant[]
 
   @@map("user")
 }
@@ -92,23 +93,42 @@ model Event {
   description     String
   productId       Int
   product         Product                  @relation(fields: [productId], references: [id])
-  status          EventStatus
+  status          EventStatus              @default(UPCOMING)
   maxParticipants Int
   timeRange       Unsupported("tstzrange")
 
-  venueId   Int
-  venue     Venue    @relation(fields: [venueId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  venueId           Int
+  venue             Venue              @relation(fields: [venueId], references: [id])
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
+  matches           Match[]
+  eventParticipants EventParticipant[]
+}
+
+model EventParticipant {
+  id      Int    @id @default(autoincrement())
+  eventId Int
+  event   Event  @relation(fields: [eventId], references: [id])
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+
+  joinedAt DateTime @default(now())
+
+  @@index([eventId])
+  @@index([userId])
+  @@unique([eventId, userId])
 }
 
 model Match {
-  id              Int  @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   maxParticipants Int
-  status          Int
-  stats           Json @default("{\"score\": \"0\"}")
+  status          MatchStatus @default(WAITING)
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
 
   createdAt    DateTime      @default(now())
+  startedAt    DateTime?
   endedAt      DateTime?
   participants Participant[]
 }
@@ -121,7 +141,10 @@ model Participant {
   user     User    @relation(fields: [userId], references: [id])
   isWinner Boolean @default(false)
   team     Int
-  stats    Json    @default("{\"score\": \"0\"}")
+
+  @@unique([matchId, userId])
+  @@index([matchId])
+  @@index([userId])
 }
 
 enum Role {

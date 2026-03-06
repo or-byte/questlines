@@ -16,11 +16,22 @@ import { clientOnly } from "@solidjs/start";
 import { useSession } from "~/lib/client/auth";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
+import { createNewEvent, EventFormData, getUpcomingEvents } from "~/lib/event";
+import Button from "~/components/button/Button";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/datetimepicker/DateTimePickerClient"),
   { fallback: <div>Loading date picker...</div> }
 );
+
+function parseTimeRange(range: string) {
+  const [startRaw, endRaw] = range.split(",");
+  const start = new Date(startRaw.replace(/[\[\(]/, ""));
+  const end = new Date(endRaw.replace(/[\]\)]/, ""));
+
+  return { start, end }
+}
+
 export default function Host() {
   const session = useSession();
   const params = useParams();
@@ -29,7 +40,7 @@ export default function Host() {
     'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
     'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
   ]; //static
-  const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
+  const [selectedVenueId, setSelectedVenueId] = createSignal<number>(0);
   const [transactionToDelete, setTransactionToDelete] = createSignal<number | null>(null);
   const [selectedSlot, setSelectedSlot] = createSignal<{
     label: string;
@@ -60,9 +71,19 @@ export default function Host() {
   const handleSelectVenue = (id: number) => {
     if (venueId() === id) return;
     setVenueId(id);
-    setSelectedCourtId(id);
+    setSelectedVenueId(id);
     setSelectedSlot(null);
   };
+
+  const [upcomingEvents] = createResource(
+    () => ({ venueId: venueId() }),
+    async ({ venueId }) => {
+      if (!venueId) return []
+
+      const events = await getUpcomingEvents(venueId);
+      return events
+    }
+  );
 
   const [allSchedules] = createResource(
     () => ({ venueId: venueId() }),
@@ -121,7 +142,8 @@ export default function Host() {
         dayEnd.setDate(dayStart.getDate() + 7);
         dayEnd.setHours(23, 59, 59, 999);
 
-        return await getTransactionsForDay(productId, dayStart, dayEnd);
+        const transactions = await getTransactionsForDay(productId, dayStart, dayEnd);
+        return transactions.map(tx => ({ ...tx, productId }));
       }));
 
       return txs.flat();
@@ -129,50 +151,76 @@ export default function Host() {
     { initialValue: [] }
   );
 
+  function generateEventSlots(event, scheduleSlots) {
+    const { start: eventStart, end: eventEnd } = parseTimeRange(event.timeRange);
+
+    const overlappingSlots = scheduleSlots.filter(
+      slot => slot.start < eventEnd && slot.end > eventStart
+    );
+
+    if (!overlappingSlots.length) return [];
+
+    const mergedSlot = {
+      start: overlappingSlots[0].start,
+      end: overlappingSlots[overlappingSlots.length - 1].end,
+      productId: overlappingSlots[0].productId,
+      productName: event.productName,
+      productPrice: event.productPrice,
+      label: `${event.name} (${overlappingSlots[0].start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${overlappingSlots[overlappingSlots.length - 1].end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
+      isEvent: true,
+      transactionId: -1,
+      transactionUser: "Event",
+    };
+
+    return [mergedSlot];
+  }
+  
   createEffect(() => {
     const txs = transactions() || [];
+    const events = upcomingEvents() || [];
     const newAvailability: Record<string, boolean> = {};
     const date = selectedDate();
 
-    const timeSlots = allSchedules()
-      .map(schedule => formatSchedules(schedule))
-      .filter(formatted =>
-        formatted.start.toDateString() === date.toDateString()
-      )
-      .map(formatted => {
-        const matchedTx = txs.find(tx => {
-          const [startRaw, endRaw] = tx.reservedTime.split(",");
-          const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
-          const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+    const formattedSchedules = allSchedules()
+      .flatMap(schedule => formatSchedules(schedule))
+      .filter(slot => slot.start.toDateString() === date.toDateString());
 
-          return formatted.start < txEnd && formatted.end > txStart;
-        });
+    const eventSlotsForDay = events
+      .filter(event => {
+        const { start } = parseTimeRange(event.timeRange);
+        return start.toDateString() === date.toDateString();
+      })
+      .flatMap(event => generateEventSlots(event, formattedSchedules));
 
+    const timeSlots = formattedSchedules.map(slot => {
+      const overlappingEvent = eventSlotsForDay.find(
+        event => slot.start.getTime() === event.start.getTime() && slot.productId === event.productId
+      );
 
-        return {
-          ...formatted,
-          transactionId: matchedTx?.id,
-          transactionUser: matchedTx?.userName
-        };
+      if (overlappingEvent) {
+        return { ...slot, ...overlappingEvent };
+      }
+
+      const matchedTx = txs.find(tx => {
+        const { start: txStart, end: txEnd } = parseTimeRange(tx.reservedTime);
+        return slot.start < txEnd && slot.end > txStart && tx.productId === slot.productId;
       });
 
-    setSlotsForDay(timeSlots);
+      return {
+        ...slot,
+        transactionId: matchedTx?.id,
+        transactionUser: matchedTx?.userName,
+      };
+    });
 
     timeSlots.forEach(slot => {
       const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
-
-      const isBooked = txs.some(tx => {
-        const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
-        return slot.start < txEnd && slot.end > txStart;
-      });
-
-      newAvailability[key] = isBooked;
+      newAvailability[key] = !!slot.transactionId;
     });
 
+    setSlotsForDay(timeSlots);
     setAvailability(newAvailability);
   });
-
 
   const handleBookNow = async (
     quantity: number,
@@ -235,6 +283,30 @@ export default function Host() {
     }
   }
 
+  const handleCreateEvent = async () => {
+    if (!selectedSlot()) return;
+
+    const startTime = selectedSlot().start;
+    const endTime = new Date(startTime.getTime() + 6 * 60 * 60 * 1000); // add 6 hours
+
+    const event: EventFormData = {
+      name: "Open Play",
+      description: "Lets play",
+      productId: 3,
+      maxParticipants: 24,
+      startTime,
+      endTime,
+      venueId: selectedVenueId()
+    };
+
+    try {
+      const result = await createNewEvent(event);
+      console.log(result);
+    } catch (err) {
+      console.error("Failed to create event", err);
+    }
+  };
+
   return (
     <main>
       <Title>Booking</Title>
@@ -273,7 +345,7 @@ export default function Host() {
                       <CourtCard
                         title={v.name}
                         thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
-                        isSelected={selectedCourtId() === v.id}
+                        isSelected={selectedVenueId() === v.id}
                         onClick={[handleSelectVenue, v.id]}
                         status="open"
                       />
@@ -283,7 +355,7 @@ export default function Host() {
               </div>
 
               {/* Date Picker */}
-              <Show when={selectedCourtId() !== 0}>
+              <Show when={selectedVenueId() !== 0}>
                 <div class="flex justify-center w-full">
                   <DateTimePickerClient
                     key={venueId()}
@@ -293,10 +365,17 @@ export default function Host() {
                 </div>
               </Show>
 
+              {/* Events */}
+              <div>
+                <Button onClick={handleCreateEvent} type="button">
+                  Create event
+                </Button>
+              </div>
+
               {/* Time Slots / Upcoming Schedules */}
               <div>
                 <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
-                  <Show when={selectedCourtId()}>
+                  <Show when={selectedVenueId()}>
                     Upcoming Schedules for {" "}
                     {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
                   </Show>
@@ -329,7 +408,7 @@ export default function Host() {
                             selectedSlot()?.productId === slot.productId
                           }
                           isAvailable={
-                            transactions.loading || !availability()[`${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`]
+                            !availability()[`${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`]
                           }
                           onClick={[setSelectedSlot, slot]}
                           isAdmin={true}
