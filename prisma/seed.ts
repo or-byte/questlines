@@ -5,8 +5,8 @@ import { ScheduleFormData } from "~/lib/schedule";
 async function main() {
   const user1 = await prisma.user.create({
     data: {
-      email: "cana_resort@gmail.com",
-      name: "Cana Resort",
+      email: "cana_retreat@gmail.com",
+      name: "Cana Retreat",
       role: "ADMIN",
     }
   })
@@ -14,8 +14,8 @@ async function main() {
   const host1 = await prisma.host.create({
     data: {
       slug: "cana",
-      name: "Cana Resort",
-      description: "The premier resort in the area.",
+      name: "Cana Retreat",
+      description: "The Retreat is an event venue for weddings, birthdays, baptism, family and batch reunions, team buildings and for every special occasion you can imagine.",
       owner: { connect: { id: user1.id } }
     }
   })
@@ -24,25 +24,39 @@ async function main() {
     data: {
       slug: "pickle-ball-court-1",
       name: "Pickle Ball Court 1",
-      description: "The main pickle ball court at Cana Resort.",
       address: "Tandayag, Amlan, 6203 Negros Oriental, Philippines",
       host: { connect: { id: host1.id } }
     }
   })
 
+  const venue2 = await prisma.venue.create({
+    data: {
+      slug: "pickle-ball-court-2",
+      name: "Pickle Ball Court 2",
+      description: "The second pickle ball court."
+    }
+  })
+
   const products: ProductFormData[] = [
     {
-      sku: "CANA-PB-1-WD",
-      name: "Mondays - Thursdays",
-      description: "Court Rental",
+      sku: "CANA-PB-1-STD",
+      name: "Standard price",
+      description: "Standard price for court rental",
       price: 300.00,
       venueId: venue1.id
     },
     {
-      sku: "CANA-PB-1-WE",
-      name: "Fridays, Saturdays, Sundays",
-      description: "Reserve for your party, special events,  overnight stays.  Play and swim all day!",
+      sku: "CANA-PB-1-EXP",
+      name: "More expensive price",
+      description: "More expensive price",
       price: 500.00,
+      venueId: venue1.id
+    },
+    {
+      sku: "CANA-PB-1-OPEN",
+      name: "Open Play",
+      description: "Price for the open play event",
+      price: 100.00,
       venueId: venue1.id
     }
   ]
@@ -55,10 +69,10 @@ async function main() {
 
   const schedules: ScheduleFormData[] = [];
 
-  for (let day = 0; day <= 6; day++) {
-    const isWeekday = day >= 1 && day <= 4;
+  // Cana retreat only from Monday to Thursday
+  for (let day = 1; day <= 4; day++) {
 
-    const productId = isWeekday ? 1 : 2;
+    const productId = 1; // Standard price
 
     for (const [startHour, endHour] of timeSlots) {
       const start = new Date(1970, 0, 1, startHour, 0, 0);
