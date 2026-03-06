@@ -37,8 +37,9 @@ export default function Host() {
 
   const params = useParams();
   const imageUrls = [
-    'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp',
-    'https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp'
+    '/images/cana_logo.png',
+    '/images/cana_1.jpg',
+    '/images/cana_2.jpg'
   ]; //static
   const [selectedCourtId, setSelectedCourtId] = createSignal<number>(0);
   const [selectedDate, setSelectedDate] = createSignal<Date>(new Date());
@@ -267,7 +268,7 @@ export default function Host() {
                     ) : (
                       <CourtCard
                         title={v.name}
-                        thumbnail="https://www.sportsimports.com/wp-content/uploads/How-to-Build-an-Outdoor-Pickleball-Court-.webp"
+                        thumbnail="/images/cana_2.jpg"
                         isSelected={selectedCourtId() === v.id}
                         onClick={[handleSelectVenue, v.id]}
                         status="open"
