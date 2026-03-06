@@ -9,6 +9,7 @@ interface TimeSlotProps {
   isAvailable: boolean;
   isAdmin: boolean;
   user?: string;
+  remainingSlots?: number;
   onClick: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onDelete?: JSX.EventHandler<HTMLDivElement, MouseEvent>;
 }
@@ -25,7 +26,12 @@ export default function TimeSlot(props: TimeSlotProps) {
         </div>
         <div class={`${props.isAvailable ? 'bg-[var(--color-success-3)]/55' : "bg-[var(--color-footer)]/20"} rounded-[5px] px-2 py-1 inline-block`}>
           <p class={`${props.isAvailable ? 'text-[var(--color-success-1)]' : "text-[var(--color-footer)]"} text-xs sm:text-sm whitespace-nowrap`}>
-            {props.isAvailable ? "Available" : `Booked${props.isAdmin ? ` by ${props.user! ?? "Unknown"}` : ""}`}</p>
+            {!props.remainingSlots ? 
+              (props.isAvailable ? 
+                "Available" : (`Booked${props.isAdmin ? 
+                  ` by ${props.user! ?? "Unknown"}` : ""}`)) :
+              `${props.remainingSlots} slots left`
+            }</p>
         </div>
       </div>
       {/* Floating Delete Button */}

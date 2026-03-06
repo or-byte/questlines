@@ -17,7 +17,7 @@ import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
-import { getUpcomingEvents } from "~/lib/event";
+import { getUpcomingEvents, joinEvent } from "~/lib/event";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/datetimepicker/DateTimePickerClient"),
@@ -59,6 +59,7 @@ export default function Host() {
     productId: number;
     productName: string;
     productPrice: number;
+    eventId?: number;
   }[]>([]);
   const [selectedSlot, setSelectedSlot] = createSignal<{
     label: string;
@@ -67,6 +68,7 @@ export default function Host() {
     productId: number;
     productName: string;
     productPrice: number;
+    isEvent: boolean;
   } | null>(null);
 
   const [host] = createResource(params.host, getHostBySlug);
@@ -163,7 +165,7 @@ export default function Host() {
 
     if (!overlappingSlots.length) return [];
 
-    const mergedSlot = {
+    return [{
       start: overlappingSlots[0].start,
       end: overlappingSlots[overlappingSlots.length - 1].end,
       productId: overlappingSlots[0].productId,
@@ -171,11 +173,10 @@ export default function Host() {
       productPrice: event.productPrice,
       label: `${event.name} (${overlappingSlots[0].start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${overlappingSlots[overlappingSlots.length - 1].end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
       isEvent: true,
-      transactionId: -1,
-      transactionUser: "Event",
-    };
-
-    return [mergedSlot];
+      eventId: event.id,
+      maxParticipants: event.maxParticipants,
+      currentParticipants: event.eventParticipants?.length || 0
+    }];
   }
 
   createEffect(async () => {
@@ -338,7 +339,7 @@ export default function Host() {
               <div>
                 <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
                   <Show when={selectedVenueId()}>
-                    Upcoming Schedules for {" "}
+                    Upcoming Schedules for{" "}
                     {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
                   </Show>
                 </h2>
@@ -350,15 +351,10 @@ export default function Host() {
                         <Skeleton
                           class="flex flex-col items-start gap-3 sm:gap-4 lg:gap-[20px] w-full min-w-0 p-4"
                           radius={5}
-                          style={{
-                            background: "#F7F3E4",
-                          }}
+                          style={{ background: "#F7F3E4" }}
                         >
-                          {/* Time */}
                           <Skeleton class="skeleton" height={16} radius={5} style={{ width: "67%" }} />
-                          {/* Price */}
                           <Skeleton class="skeleton gap-1" height={16} radius={5} style={{ width: "20%" }} />
-                          {/* Availability Badge */}
                           <Skeleton class="skeleton" height={16} radius={5} style={{ width: "25%" }} />
                         </Skeleton>
                       ) : (
@@ -372,6 +368,8 @@ export default function Host() {
                           isAvailable={true}
                           onClick={[setSelectedSlot, slot]}
                           isAdmin={false}
+                          eventId={slot.eventId ?? false}
+                          eventName={slot.isEvent ? slot.label : undefined}
                         />
                       )
                     }
@@ -382,7 +380,7 @@ export default function Host() {
               {/* Booking Summary */}
               <Show when={selectedSlot()}>
                 {(slot) => {
-                  const hours = (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
+                  const hours = slot().isEvent ? 1 : (slot().end.getTime() - slot().start.getTime()) / (1000 * 60 * 60);
                   const totalPrice = slot().productPrice * hours;
 
                   return (

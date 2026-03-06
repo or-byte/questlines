@@ -18,6 +18,47 @@ export type EventFormData = {
   venueId: number
 }
 
+export const getEventParticipantsCount = async (eventId: number) => {
+  "use server"
+
+  return await prisma.eventParticipant.count({
+    where: { eventId }
+  });
+}
+
+export const getEventWithAvailability = async (eventId: number) => {
+  "use server"
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      eventParticipants: true
+    }
+  })
+
+  if (!event) return null;
+
+  const remainingSlots = event.maxParticipants - event.eventParticipants.length;
+
+  return {
+    ...event,
+    remainingSlots
+  }
+}
+
+export const joinEvent = async (eventId: number, userId: string) => {
+  "use server"
+  const event = await getEventWithAvailability(eventId);
+  if (!event) throw new Error("Event not found");
+  if (event.remainingSlots <= 0) throw new Error("Event is full");
+
+  const participant = await prisma.eventParticipant.create({
+    data: { eventId, userId }
+  });
+
+  return participant;
+};
+
 export const getUpcomingEvents = async (
   venueId: number
 ): Promise<

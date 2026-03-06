@@ -67,6 +67,7 @@ export default function Host() {
     productPrice: number;
     transactionId?: number;
     transactionUser?: string;
+    eventId?: number
   }[]>([]);
   const handleSelectVenue = (id: number) => {
     if (venueId() === id) return;
@@ -160,7 +161,7 @@ export default function Host() {
 
     if (!overlappingSlots.length) return [];
 
-    const mergedSlot = {
+    return [{
       start: overlappingSlots[0].start,
       end: overlappingSlots[overlappingSlots.length - 1].end,
       productId: overlappingSlots[0].productId,
@@ -168,13 +169,12 @@ export default function Host() {
       productPrice: event.productPrice,
       label: `${event.name} (${overlappingSlots[0].start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${overlappingSlots[overlappingSlots.length - 1].end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
       isEvent: true,
-      transactionId: -1,
-      transactionUser: "Event",
-    };
-
-    return [mergedSlot];
+      eventId: event.id,
+      maxParticipants: event.maxParticipants,
+      currentParticipants: event.eventParticipants?.length || 0
+    }];
   }
-  
+
   createEffect(() => {
     const txs = transactions() || [];
     const events = upcomingEvents() || [];
@@ -388,15 +388,10 @@ export default function Host() {
                         <Skeleton
                           class="flex flex-col items-start gap-3 sm:gap-4 lg:gap-[20px] w-full min-w-0 p-4"
                           radius={5}
-                          style={{
-                            background: "#F7F3E4",
-                          }}
+                          style={{ background: "#F7F3E4" }}
                         >
-                          {/* Time */}
                           <Skeleton class="skeleton" height={16} radius={5} style={{ width: "67%" }} />
-                          {/* Price */}
                           <Skeleton class="skeleton gap-1" height={16} radius={5} style={{ width: "20%" }} />
-                          {/* Availability Badge */}
                           <Skeleton class="skeleton" height={16} radius={5} style={{ width: "25%" }} />
                         </Skeleton>
                       ) : (
@@ -412,8 +407,9 @@ export default function Host() {
                           }
                           onClick={[setSelectedSlot, slot]}
                           isAdmin={true}
-                          onDelete={() => onClickDelete(slot.transactionId)}
+                          onDelete={() => onClickDelete(slot.transactionId ?? slot.eventId)}
                           user={slot.transactionUser}
+                          remainingSlots={slot.isEvent ? slot.maxParticipants - (slot.currentParticipants ?? 0) : undefined}
                         />
                       )
                     }
