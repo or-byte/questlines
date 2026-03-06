@@ -196,9 +196,7 @@ export default function Host() {
     }
 
     try {
-      const newTransaction = await createNewTransaction(form);
-
-      alert(`Booked successfully! Transaction ID: ${newTransaction.id}`);
+      await createNewTransaction(form);
       refetch();
     } catch (err) {
       console.error(err);
