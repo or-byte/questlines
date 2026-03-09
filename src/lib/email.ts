@@ -1,0 +1,82 @@
+import { getAccessToken } from "./googleAuth";
+
+export const sendConfirmationEmail = async (recipient: string, subject: string) => {
+  const accessToken = await getAccessToken();
+
+  const body = `
+      <html>
+        <body style="font-family: Arial, sans-serif; background:#f6f6f6; padding:20px;">
+          <div style="max-width:600px; margin:auto; background:white; border-radius:8px; padding:30px;">
+            
+            <h2 style="color:#2c7be5; margin-top:0;">Booking Confirmed 🎉</h2>
+
+            <p>Hello,</p>
+
+            <p>Your booking has been <strong>successfully confirmed</strong>. Here are your booking details:</p>
+
+            <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+              <tr>
+                <td style="padding:8px 0; color:#555;"><strong>Booking ID</strong></td>
+                <td style="padding:8px 0;">#123456</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0; color:#555;"><strong>Date</strong></td>
+                <td style="padding:8px 0;">March 10, 2026</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0; color:#555;"><strong>Venue</strong></td>
+                <td style="padding:8px 0;">Main Hall</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0; color:#555;"><strong>Status</strong></td>
+                <td style="padding:8px 0; color:green;"><strong>Confirmed</strong></td>
+              </tr>
+            </table>
+
+            <p style="margin-top:25px;">
+              If you have any questions, feel free to reply to this email.
+            </p>
+
+            <hr style="margin:30px 0; border:none; border-top:1px solid #eee;"/>
+
+            <p style="font-size:12px; color:#888;">
+              This is an automated confirmation email. Do not reply.
+            </p>
+
+          </div>
+        </body>
+      </html>
+      `;
+
+  const message = [
+    `To: ${recipient}`,
+    `Subject: ${subject}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "",
+    body
+  ].join("\n");
+
+  const base64Encoded = btoa(unescape(encodeURIComponent(message)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  try {
+    const response = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ raw: base64Encoded }),
+      }
+    );
+    console.log(response);
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
+};

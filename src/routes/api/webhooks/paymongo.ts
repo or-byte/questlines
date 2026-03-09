@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { sendConfirmationEmail } from "~/lib/email";
 import prisma from "~/lib/prisma";
 
 const WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET!.trim();
@@ -64,6 +65,7 @@ export async function POST({ request }: { request: Request }) {
       "unknown";
 
     const amountPaid = payment?.amount != null ? payment.amount / 100 : 0;
+    const email = session.billing?.email || session.customer_email || payment?.billing?.email || null;
 
     if (!transactionId) {
       console.warn("No transactionId in metadata");
@@ -75,7 +77,18 @@ export async function POST({ request }: { request: Request }) {
         where: { id: Number(transactionId), status: "PENDING" },
         data: { status: "PAID", paymentMethod: paymentMethod, amountPaid: amountPaid },
       });
-      console.log("Transaction marked as PAID:", transactionId);
+      console.log(`Transaction ${transactionId} marked as PAID.`);
+
+      // Send email to user that payment was successful
+      if (!email) {
+        console.warn("No customer email found for transaction:", transactionId);
+      } else {
+        const subject = "Payment Successful - Booking Confirmation";
+
+        await sendConfirmationEmail(email, subject);
+
+        console.log("Confirmation email sent to: ", email);
+      }
     }
 
     return new Response("OK", { status: 200 });
