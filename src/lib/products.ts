@@ -11,6 +11,18 @@ export type ProductFormData = {
   venueId: number
 }
 
+export async function getProductsByVenueId(venueId: number) {
+  "use server"
+  const products = await prisma.product.findMany({
+    where: { venueId: venueId }
+  })
+
+  return products.map(p => ({
+    ...p,
+    price: Number(p.price),
+  }));
+}
+
 export async function createNewProduct(form: ProductFormData) {
   "use server";
   const product = await prisma.product.create({
@@ -22,17 +34,32 @@ export async function createNewProduct(form: ProductFormData) {
       venue: { connect: { id: form.venueId } },
     }
   })
-  return product;
+  return {
+    ...product,
+    price: Number(product.price)
+  }
 }
 
-export async function getProductsByVenueId(id: number) {
-  "use server";
-  const products = await prisma.product.findMany({
-    where: { venueId: id }
+export async function updateProduct(productId: number, form: ProductFormData) {
+  "use server"
+  const product = await prisma.product.upsert({
+    where: { id: productId },
+    update: {
+      sku: form.sku,
+      name: form.name,
+      description: form.description,
+      price: form.price
+    },
+    create: {
+      sku: form.sku,
+      name: form.name,
+      description: form.description,
+      price: form.price,
+      venueId: form.venueId
+    }
   })
-
-  return products.map(p => ({
-    ...p,
-    price: Number(p.price),
-  }));
+  return {
+    ...product,
+    price: Number(product.price)
+  }
 }

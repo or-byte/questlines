@@ -21,7 +21,7 @@ const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
   { fallback: <div>Loading date picker...</div> }
 );
-export default function Host() {
+export default function AdminHost() {
   const session = useSession();
   const params = useParams();
 

@@ -19,6 +19,17 @@ export type FormattedSchedule = {
   productPrice: number
 }
 
+export const getSchedules = async (productId: number) => {
+  "use server"
+  return await prisma.schedule.findMany({
+    where: { productId },
+    orderBy: [
+      { dayOfWeek: "asc" },
+      { startTime: "asc" }
+    ]
+  })
+}
+
 export const createNewSchedule = async (form: ScheduleFormData) => {
   "use server";
 
@@ -62,17 +73,6 @@ export const createNewSchedule = async (form: ScheduleFormData) => {
     throw e;
   }
 };
-
-export const getSchedules = async (productId: number) => {
-  "use server"
-  return await prisma.schedule.findMany({
-    where: { productId },
-    orderBy: [
-      { dayOfWeek: "asc" },
-      { startTime: "asc" }
-    ]
-  })
-}
 
 export const formatSchedules = (schedule: Schedule) => {
   const today = new Date();
