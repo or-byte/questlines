@@ -133,15 +133,21 @@ export default function HostAdminDashboard() {
 
           {/* Action Buttons */}
           <div class="flex gap-3 mb-6">
-            <Button class="btn btn-secondary" onClick={[handleSelectEditorState, EditorState.PRODUCT]}>
+            <Button
+              class={`${editorState() === EditorState.PRODUCT ? "btn-selected" : "btn-unselected"}`}
+              onClick={[handleSelectEditorState, EditorState.PRODUCT]}>
               Edit Products
             </Button>
 
-            <Button class="btn btn-secondary" onClick={[handleSelectEditorState, EditorState.SCHEDULE]}>
+            <Button
+              class={`${editorState() === EditorState.SCHEDULE ? "btn-selected" : "btn-unselected"}`}
+              onClick={[handleSelectEditorState, EditorState.SCHEDULE]}>
               Edit Timeslots
             </Button>
 
-            <Button class="btn btn-secondary opacity-50 cursor-not-allowed" disabled>
+            <Button
+              class={`${editorState() === EditorState.EVENT ? "btn-selected" : "btn-unselected opacity-50 cursor-not-allowed"}`}
+              disabled>
               Create Events (coming soon)
             </Button>
           </div>
@@ -172,7 +178,7 @@ export default function HostAdminDashboard() {
                   {(v) => (
                     <Button
                       type="button"
-                      class="btn text-left"
+                      class={`text-left ${selectedVenueId() === v.id ? "btn-selected" : "btn-unselected"}`}
                       onClick={[handleSelectVenue, v.id]}
                     >
                       {v.name}
@@ -205,7 +211,7 @@ export default function HostAdminDashboard() {
                 <For each={products()}>
                   {(p) => (
                     <Button
-                      class="btn text-left"
+                      class={`text-left ${selectedProductId() === p.id ? "btn-selected" : "btn-unselected"}`}
                       onClick={[handleSelectProduct, p.id]}>
                       {p.name}
                     </Button>
@@ -301,7 +307,7 @@ export default function HostAdminDashboard() {
 
                         return (
                           <Button
-                            class={`btn text-sm ${isSelected ? "bg-blue-500 text-white" : ""}`}
+                            class={`btn text-sm ${isSelected ? "btn-selected" : "btn-unselected"}`}
                             onClick={() => {
                               setSelectedScheduleId(s.id);
 
@@ -346,7 +352,7 @@ export default function HostAdminDashboard() {
                           return (
                             <button
                               type="button"
-                              class={`btn text-sm ${selected ? "bg-blue-500 text-white" : ""}`}
+                              class={`btn text-sm ${selected ? "btn-selected" : "btn-unselected"}`}
                               onClick={() => {
                                 const current = selectedDays();
                                 const newDays = current.includes(index)
