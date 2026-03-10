@@ -140,6 +140,18 @@ p {
     }
   }
 
+  .date-picker-main-btn[data-day-number-selected=true],
+  .date-picker-main-btn[date-selector-option-selected=true] {
+    background-color: var(--color-accent-1) !important;
+  }
+  .date-picker-main-btn:not(.time-picker-meridiem-btn):hover {
+    background-color: none !important;
+  }
+
+  .date-picker-main-btn[data-day-number-current-day=true], .date-picker-main-btn:not(.time-picker-meridiem-btn):hover {
+    background-color: var(--color-bg-2) !important;
+  }
+
   .skeleton {
     height: auto;
     width: 100%;
