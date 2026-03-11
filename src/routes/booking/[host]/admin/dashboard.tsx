@@ -123,6 +123,10 @@ export default function HostAdminDashboard() {
     }));
   };
 
+  const handleSaveSchedule = async() => {
+    
+  }
+
   return (
     <main>
       <Title>Host Editor</Title>

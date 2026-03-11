@@ -25,13 +25,32 @@ model User {
 }
 
 model Host {
-  id          Int     @id @default(autoincrement())
-  slug        String  @unique
-  name        String  @default("")
-  description String  @default("")
+  id          Int           @id @default(autoincrement())
+  slug        String        @unique
+  name        String        @default("")
+  description String        @default("")
   ownerId     String
-  owner       User    @relation(fields: [ownerId], references: [id])
+  owner       User          @relation(fields: [ownerId], references: [id])
   venues      Venue[]
+  information Information[]
+}
+
+model Information {
+  id                 Int                 @id @default(autoincrement())
+  title              String
+  hostId             Int
+  host               Host                @relation(fields: [hostId], references: [id])
+  order              Int
+  informationDetails InformationDetail[]
+}
+
+model InformationDetail {
+  id            Int         @id @default(autoincrement())
+  icon          String?
+  text          String
+  informationId Int
+  information   Information @relation(fields: [informationId], references: [id])
+  order         Int
 }
 
 model Venue {

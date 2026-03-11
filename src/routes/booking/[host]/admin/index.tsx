@@ -211,13 +211,11 @@ export default function AdminHost() {
 
   const handleDelete = async () => {
     const id = transactionToDelete();
-    console.log("id", id);
 
     if (!id) return;
 
     try {
       const res = await updateTransactionStatus(id, "CANCELLED");
-      console.log(res);
 
     } catch (err) {
       console.error("Failed to update transaction", err);

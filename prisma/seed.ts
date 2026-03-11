@@ -5,8 +5,8 @@ import { ScheduleFormData } from "~/lib/schedule";
 async function main() {
   const user1 = await prisma.user.create({
     data: {
-      email: "cana_resort@gmail.com",
-      name: "Cana Resort",
+      email: "cana_retreat@gmail.com",
+      name: "Cana Retreat",
       role: "ADMIN",
     }
   })
@@ -14,17 +14,91 @@ async function main() {
   const host1 = await prisma.host.create({
     data: {
       slug: "cana",
-      name: "Cana Resort",
-      description: "The premier resort in the area.",
+      name: "Cana Retreat",
+      description: "A relaxing place for your family.",
       owner: { connect: { id: user1.id } }
     }
+  })
+
+  const info1 = await prisma.information.create({
+    data: {
+      title: "Contact Information",
+      hostId: host1.id,
+      order: 0
+    }
+  })
+
+  await prisma.informationDetail.createMany({
+    data: [
+      {
+        text: "sampleemail@gmail.com",
+        informationId: info1.id,
+        order: 0
+      },
+      {
+        text: "Tandayag, Amlan, 6203 Negros Oriental, Philippines",
+        informationId: info1.id,
+        order: 1
+      },
+      {
+        text: "+63 967 676 6767",
+        informationId: info1.id,
+        order: 2
+      },
+    ]
+  })
+
+  const info2 = await prisma.information.create({
+    data: {
+      title: "Room Facilities",
+      hostId: host1.id,
+      order: 1
+    }
+  })
+
+  await prisma.informationDetail.createMany({
+    data: [
+      {
+        text: "Facility1",
+        informationId: info2.id,
+        order: 0
+      },
+      {
+        text: "Facility2",
+        informationId: info2.id,
+        order: 1
+      }
+    ]
+  })
+
+  const info3 = await prisma.information.create({
+    data: {
+      title: "Facility Rules",
+      hostId: host1.id,
+      order: 2
+    }
+  })
+
+  await prisma.informationDetail.createMany({
+    data: [
+      {
+        text: "Rule 1",
+        informationId: info3.id,
+        order: 0
+      },
+      {
+        text: "Rule 2",
+        informationId: info3.id,
+        order: 1
+      }
+    ]
   })
 
   const venue1 = await prisma.venue.create({
     data: {
       slug: "pickle-ball-court-1",
       name: "Pickle Ball Court 1",
-      description: "The main pickle ball court at Cana Resort.",
+      description: "The main pickle ball court at Cana Retreat.",
       address: "Tandayag, Amlan, 6203 Negros Oriental, Philippines",
       host: { connect: { id: host1.id } }
     }
