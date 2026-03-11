@@ -1,5 +1,11 @@
 import prisma from "./prisma";
-import { Information as PrismaInformation, InformationDetail as PrismaInformationDetail } from "@prisma/client";
+import { Host, Information as PrismaInformation, InformationDetail as PrismaInformationDetail } from "@prisma/client";
+
+export type HostFormData = {
+  slug: string,
+  name: string,
+  description: string
+}
 
 export type Information = PrismaInformation;
 export type InfoDetail = PrismaInformationDetail
@@ -44,4 +50,17 @@ export const getHostInformation = async (id: number): Promise<InformationBlock[]
   }
 
   return hostInfo;
+}
+
+export const updateHost = async (hostId: number, form: HostFormData) => {
+  "use server"
+
+  return await prisma.host.update({
+    where: { id: hostId},
+    data: {
+      slug: form.slug,
+      name: form.name,
+      description: form.description
+    }
+  });
 }

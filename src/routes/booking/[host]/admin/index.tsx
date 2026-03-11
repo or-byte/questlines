@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show, createMemo } from "solid-js"
-import { getHostBySlug } from "~/lib/host"
+import { getHostBySlug, getHostInformation } from "~/lib/host"
 import { getProductsByVenueId } from "~/lib/products";
 import { formatSchedules, getSchedules } from "~/lib/schedule";
 import { TransactionStatus, createNewTransaction, getTransactionsForDay, updateTransactionStatus, TransactionFormData } from "~/lib/transaction";
@@ -42,6 +42,7 @@ export default function AdminHost() {
   } | null>(null);
 
   const [host] = createResource(params.host, getHostBySlug);
+  const [hostInfo] = createResource(() => host()?.id, getHostInformation);
   const [venues] = createResource(() => host()?.id, getVenuesByHost);
   const [venueId, setVenueId] = createSignal<number>(0);
   const [products] = createResource(() => venueId(), getProductsByVenueId);
@@ -389,13 +390,15 @@ export default function AdminHost() {
               </div>
 
               {/* Info Panel */}
-              <InfoPanel
-                email="sampleemail@gmail.com"
-                address="Address, address, address"
-                contact="+63 991 123 4561"
-                facilities={["Facility1", "Facility2"]}
-                rules={["rule1", "rule1"]}
-              />
+              <Show when={!hostInfo.loading}>
+                <For each={hostInfo()}>
+                  {(info) => {
+                    return (
+                      <InfoPanel header={info.header} body={info.body} />
+                    )
+                  }}
+                </For>
+              </Show>
             </aside>
           </div>
           <ConfirmationModal

@@ -3,7 +3,7 @@ import { useParams } from "@solidjs/router";
 import { createResource, createSignal, For, Show } from "solid-js";
 import Button from "~/components/button/Button";
 import { Skeleton } from "@kobalte/core/skeleton";
-import { getHostBySlug } from "~/lib/host";
+import { getHostBySlug, HostFormData, updateHost } from "~/lib/host";
 import { createNewProduct, getProductsByVenueId, ProductFormData, updateProduct } from "~/lib/products";
 import { getVenuesByHost } from "~/lib/venue";
 import { getSchedules, ScheduleFormData } from "~/lib/schedule";
@@ -17,11 +17,50 @@ const EditorState = {
 export default function HostAdminDashboard() {
   const params = useParams();
 
-  const [host] = createResource(() => params.host, getHostBySlug);
+  // Host/Venue states
+  const [host, { refetch: refetchHost }] = createResource(() => params.host, getHostBySlug);
   const [venues] = createResource(() => host()?.id, getVenuesByHost);
   const [selectedVenueId, setSelectedVenue] = createSignal();
 
+  const [hostForm, setHostForm] = createSignal<HostFormData>({
+    slug: "",
+    name: "",
+    description: "",
+  });
+
+  const updateHostForm = <K extends keyof HostFormData>(
+    field: K,
+    value: HostFormData[K]
+  ) => {
+    setHostForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }
+
   const [editorState, setEditorState] = createSignal(EditorState.PRODUCT);
+
+  const [isEditingHost, toggleEditingHost] = createSignal(false);
+  const handleToggleEditHost = async () => {
+    toggleEditingHost(!isEditingHost());
+    setHostForm({
+      slug: host()?.slug,
+      name: host()?.name,
+      description: host()?.description,
+    })
+  }
+
+  const handleUpdateHost = async () => {
+    const data = hostForm();
+
+    try {
+      await updateHost(host()?.id, data);
+      toggleEditingHost(false);
+      refetchHost();
+    } catch (err) {
+      console.error("Failed to save changes when editing host", err);
+    }
+  };
 
   // Product States
   const [products, { refetch: refetchProducts }] = createResource(() => selectedVenueId(), getProductsByVenueId);
@@ -34,7 +73,7 @@ export default function HostAdminDashboard() {
     venueId: 0
   });
 
-  const updateField = <K extends keyof ProductFormData>(
+  const updateProductField = <K extends keyof ProductFormData>(
     field: K,
     value: ProductFormData[K]
   ) => {
@@ -123,8 +162,8 @@ export default function HostAdminDashboard() {
     }));
   };
 
-  const handleSaveSchedule = async() => {
-    
+  const handleSaveSchedule = async () => {
+
   }
 
   return (
@@ -133,7 +172,57 @@ export default function HostAdminDashboard() {
 
       <div class="mx-4 sm:mx-8 lg:mx-30 py-4 sm:py-6">
         <Show when={!host.loading} fallback={<Skeleton class="skeleton w-48 h-8 rounded-md mb-6" />}>
-          <h1 class="text-xl font-semibold mb-6">{host()?.name}</h1>
+          <h1 class="text-xl font-semibold mb-6">
+            {host()?.name}
+            <Button
+              class="btn"
+              onclick={handleToggleEditHost}>
+              Edit
+            </Button>
+          </h1>
+
+          {/* Host Editor */}
+          <Show when={isEditingHost()}>
+            <div class="border rounded-lg p-4 flex flex-col gap-4 mb-4">
+
+              <h2 class="font-semibold text-lg">Host Editor</h2>
+
+              {/* Slug */}
+              <div class="flex flex-col gap-1">
+                <label class="text-sm text-gray-600">Slug</label>
+                <input
+                  class="border rounded px-3 py-2"
+                  value={hostForm().slug}
+                  onInput={(e) => updateHostForm("slug", e.currentTarget.value)}
+                />
+              </div>
+
+              {/* Name */}
+              <div class="flex flex-col gap-1">
+                <label class="text-sm text-gray-600">Name</label>
+                <input
+                  class="border rounded px-3 py-2"
+                  value={hostForm().name}
+                  onInput={(e) => updateHostForm("name", e.currentTarget.value)}
+                />
+              </div>
+
+              {/* Description */}
+              <div class="flex flex-col gap-1">
+                <label class="text-sm text-gray-600">Description</label>
+                <input
+                  class="border rounded px-3 py-2"
+                  value={hostForm().description}
+                  onInput={(e) => updateHostForm("description", e.currentTarget.value)}
+                />
+              </div>
+
+              {/* Save button */}
+              <Button class="btn mt-2" onClick={handleUpdateHost}>
+                Save Changes
+              </Button>
+            </div>
+          </Show>
 
           {/* Action Buttons */}
           <div class="flex gap-3 mb-6">
@@ -244,7 +333,7 @@ export default function HostAdminDashboard() {
                     <input
                       class="border rounded px-3 py-2"
                       value={productForm().sku}
-                      onInput={(e) => updateField("sku", e.currentTarget.value)}
+                      onInput={(e) => updateProductField("sku", e.currentTarget.value)}
                     />
                   </div>
 
@@ -254,7 +343,7 @@ export default function HostAdminDashboard() {
                     <input
                       class="border rounded px-3 py-2"
                       value={productForm().name}
-                      onInput={(e) => updateField("name", e.currentTarget.value)}
+                      onInput={(e) => updateProductField("name", e.currentTarget.value)}
                     />
                   </div>
 
@@ -265,7 +354,7 @@ export default function HostAdminDashboard() {
                       class="border rounded px-3 py-2"
                       rows="3"
                       value={productForm().description}
-                      onInput={(e) => updateField("description", e.currentTarget.value)}
+                      onInput={(e) => updateProductField("description", e.currentTarget.value)}
                     />
                   </div>
 
@@ -276,7 +365,7 @@ export default function HostAdminDashboard() {
                       type="number"
                       class="border rounded px-3 py-2"
                       value={productForm().price}
-                      onInput={(e) => updateField("price", Number(e.currentTarget.value))}
+                      onInput={(e) => updateProductField("price", Number(e.currentTarget.value))}
                     />
                   </div>
 
