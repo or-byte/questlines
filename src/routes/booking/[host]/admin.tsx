@@ -18,7 +18,7 @@ import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
 
 const DateTimePickerClient = clientOnly(
-  () => import("~/components/datetimepicker/DateTimePickerClient"),
+  () => import("~/components/calendar/DatePickerClient"),
   { fallback: <div>Loading date picker...</div> }
 );
 export default function Host() {
@@ -230,7 +230,8 @@ export default function Host() {
 
   const onChangeDay = (date: any) => {
     if (date) {
-      setSelectedDate(date.currentDate);
+      const jsDate = new Date(date.year, date.month, date.day);
+      setSelectedDate(jsDate);
       setSelectedSlot(null);
     }
   }
@@ -288,7 +289,7 @@ export default function Host() {
                   <DateTimePickerClient
                     key={venueId()}
                     value={selectedDate()}
-                    calendarResponse={onChangeDay}
+                    onChange={(val) => onChangeDay(val)}
                   />
                 </div>
               </Show>

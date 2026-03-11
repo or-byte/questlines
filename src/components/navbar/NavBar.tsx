@@ -32,7 +32,7 @@ export default function NavBar() {
         />
 
         {/* Desktop links ONLY */}
-        <div class="hidden md:flex gap-6">
+        <div class="hidden md:flex gap-6 items-center">
           <For each={menuItems}>
             {(item) => (
               <A
