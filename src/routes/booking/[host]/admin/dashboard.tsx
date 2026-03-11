@@ -3,19 +3,23 @@ import { useParams } from "@solidjs/router";
 import { createResource, createSignal, For, Show } from "solid-js";
 import Button from "~/components/button/Button";
 import { Skeleton } from "@kobalte/core/skeleton";
-import { getHostBySlug, HostFormData, updateHost } from "~/lib/host";
+import { getHostBySlug, getHostInformation, HostFormData, Information, InformationFormData, updateHost } from "~/lib/host";
 import { createNewProduct, getProductsByVenueId, ProductFormData, updateProduct } from "~/lib/products";
 import { getVenuesByHost } from "~/lib/venue";
 import { getSchedules, ScheduleFormData } from "~/lib/schedule";
 
-const EditorState = {
-  PRODUCT: "PRODUCT",
-  SCHEDULE: "SCHEDULE",
-  EVENT: "EVENT"
-} as const;
+enum EditorStates {
+  HOST,
+  INFORMATION,
+  PRODUCT,
+  SCHEDULE,
+  EVENT
+}
 
 export default function HostAdminDashboard() {
   const params = useParams();
+
+  const [editorState, setEditorState] = createSignal<EditorStates>(EditorStates.PRODUCT);
 
   // Host/Venue states
   const [host, { refetch: refetchHost }] = createResource(() => params.host, getHostBySlug);
@@ -38,11 +42,8 @@ export default function HostAdminDashboard() {
     }));
   }
 
-  const [editorState, setEditorState] = createSignal(EditorState.PRODUCT);
-
-  const [isEditingHost, toggleEditingHost] = createSignal(false);
   const handleToggleEditHost = async () => {
-    toggleEditingHost(!isEditingHost());
+    setEditorState(EditorStates.HOST);
     setHostForm({
       slug: host()?.slug,
       name: host()?.name,
@@ -55,12 +56,32 @@ export default function HostAdminDashboard() {
 
     try {
       await updateHost(host()?.id, data);
-      toggleEditingHost(false);
+      setEditorState(EditorStates.PRODUCT)
       refetchHost();
     } catch (err) {
       console.error("Failed to save changes when editing host", err);
     }
   };
+
+  // Information states
+  const [hostInfo] = createResource(() => host()?.id, getHostInformation);
+  const [informationForm, setInformationForm] = createSignal<InformationFormData>({
+    header: "",
+    body: []
+  });
+
+  const updateInformationForm = <K extends keyof InformationFormData>(
+    field: K,
+    value: InformationFormData[K]
+  ) => {
+    setInformationForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }
+  const handleToggleEditInformation = async () => {
+    setEditorState(EditorStates.INFORMATION);
+  }
 
   // Product States
   const [products, { refetch: refetchProducts }] = createResource(() => selectedVenueId(), getProductsByVenueId);
@@ -174,15 +195,48 @@ export default function HostAdminDashboard() {
         <Show when={!host.loading} fallback={<Skeleton class="skeleton w-48 h-8 rounded-md mb-6" />}>
           <h1 class="text-xl font-semibold mb-6">
             {host()?.name}
-            <Button
-              class="btn"
-              onclick={handleToggleEditHost}>
-              Edit
-            </Button>
           </h1>
 
+          {/* Action Buttons */}
+          <div class="flex gap-3 mb-6">
+            <Button
+              class={`${editorState() === EditorStates.HOST ? "btn-selected" : "btn-unselected"}`}
+              onclick={handleToggleEditHost}>
+              Edit Host
+            </Button>
+            <Button
+              class={`${editorState() === EditorStates.INFORMATION ? "btn-selected" : "btn-unselected"}`}
+              onclick={handleToggleEditInformation}>
+              Edit Info
+            </Button>
+            <Button
+              class={`${editorState() === EditorStates.PRODUCT ? "btn-selected" : "btn-unselected"}`}
+              onClick={[handleSelectEditorState, EditorStates.PRODUCT]}>
+              Edit Products
+            </Button>
+
+            <Button
+              class={`${editorState() === EditorStates.SCHEDULE ? "btn-selected" : "btn-unselected"}`}
+              onClick={[handleSelectEditorState, EditorStates.SCHEDULE]}>
+              Edit Timeslots
+            </Button>
+
+            <Button
+              class={`${editorState() === EditorStates.EVENT ? "btn-selected" : "btn-unselected opacity-50 cursor-not-allowed"}`}
+              disabled>
+              Create Events (coming soon)
+            </Button>
+          </div>
+
+          {/* Current Editor State */}
+          <p class="text-sm text-gray-500 mb-4">
+            {editorState() === EditorStates.PRODUCT && "Currently editing products"}
+            {editorState() === EditorStates.SCHEDULE && "Currently editing timeslots"}
+            {editorState() === EditorStates.EVENT && "Currently creating events"}
+          </p>
+
           {/* Host Editor */}
-          <Show when={isEditingHost()}>
+          <Show when={editorState() === EditorStates.HOST}>
             <div class="border rounded-lg p-4 flex flex-col gap-4 mb-4">
 
               <h2 class="font-semibold text-lg">Host Editor</h2>
@@ -224,39 +278,11 @@ export default function HostAdminDashboard() {
             </div>
           </Show>
 
-          {/* Action Buttons */}
-          <div class="flex gap-3 mb-6">
-            <Button
-              class={`${editorState() === EditorState.PRODUCT ? "btn-selected" : "btn-unselected"}`}
-              onClick={[handleSelectEditorState, EditorState.PRODUCT]}>
-              Edit Products
-            </Button>
-
-            <Button
-              class={`${editorState() === EditorState.SCHEDULE ? "btn-selected" : "btn-unselected"}`}
-              onClick={[handleSelectEditorState, EditorState.SCHEDULE]}>
-              Edit Timeslots
-            </Button>
-
-            <Button
-              class={`${editorState() === EditorState.EVENT ? "btn-selected" : "btn-unselected opacity-50 cursor-not-allowed"}`}
-              disabled>
-              Create Events (coming soon)
-            </Button>
-          </div>
-
-          {/* Current Editor State */}
-          <p class="text-sm text-gray-500 mb-4">
-            {editorState() === EditorState.PRODUCT && "Currently editing products"}
-            {editorState() === EditorState.SCHEDULE && "Currently editing timeslots"}
-            {editorState() === EditorState.EVENT && "Currently creating events"}
-          </p>
-
           <div class="grid grid-cols-4 gap-6">
             {/* Venues */}
             <div class="flex flex-col gap-3">
               <Show
-                when={!venues.loading}
+                when={!venues.loading && (editorState() === EditorStates.PRODUCT || editorState() === EditorStates.SCHEDULE)}
                 fallback={
                   <div class="flex flex-col gap-3">
                     <For each={[1, 2, 3, 4]}>
@@ -267,6 +293,7 @@ export default function HostAdminDashboard() {
                   </div>
                 }
               >
+                <h3>Venues</h3>
                 <For each={venues()}>
                   {(v) => (
                     <Button
@@ -278,12 +305,12 @@ export default function HostAdminDashboard() {
                     </Button>
                   )}
                 </For>
-              </Show>
 
-              {/* Add venue */}
-              <Button class="btn btn-primary mt-4">
-                + Add Venue
-              </Button>
+                {/* Add venue */}
+                <Button class="btn btn-primary mt-4">
+                  + Add Venue
+                </Button>
+              </Show>
             </div>
 
 
@@ -301,6 +328,8 @@ export default function HostAdminDashboard() {
                   </div>
                 }
               >
+                <h3>Products</h3>
+
                 <For each={products()}>
                   {(p) => (
                     <Button
@@ -321,7 +350,7 @@ export default function HostAdminDashboard() {
             </div>
 
             <Show when={selectedProductId() !== undefined}>
-              <Show when={editorState() === EditorState.PRODUCT}>
+              <Show when={editorState() === EditorStates.PRODUCT}>
                 {/* Product Editor */}
                 <div class="border rounded-lg p-4 flex flex-col gap-4">
 
@@ -376,10 +405,11 @@ export default function HostAdminDashboard() {
                 </div>
               </Show>
 
-              <Show when={editorState() === EditorState.SCHEDULE}>
+              <Show when={editorState() === EditorStates.SCHEDULE}>
                 <Show when={!schedules.loading} fallback={<p>Loading schedules...</p>}>
                   {/* Schedule List Sorted by Time (one button per time slot) */}
                   <div class="flex flex-wrap gap-2 mb-2">
+                    <h3>Time Slots</h3>
                     <For each={(() => {
                       const allSchedules = schedules() ?? [];
                       const grouped: Record<string, ScheduleFormData[]> = {};

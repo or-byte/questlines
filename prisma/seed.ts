@@ -31,16 +31,19 @@ async function main() {
   await prisma.informationDetail.createMany({
     data: [
       {
+        icon: "MdOutlineEmail",
         text: "sampleemail@gmail.com",
         informationId: info1.id,
         order: 0
       },
       {
+        icon: "MdOutlineLocation_on",
         text: "Tandayag, Amlan, 6203 Negros Oriental, Philippines",
         informationId: info1.id,
         order: 1
       },
       {
+        icon: "MdFillLocal_phone",
         text: "+63 967 676 6767",
         informationId: info1.id,
         order: 2

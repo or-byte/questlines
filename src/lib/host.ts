@@ -15,6 +15,11 @@ export type InformationBlock = {
   body: InfoDetail[]
 }
 
+export type InformationFormData = {
+  header: string,
+  body: string[]
+}
+
 export const getHosts = async () => {
   "use server";
   return await prisma.host.findMany();
