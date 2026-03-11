@@ -9,8 +9,6 @@ export async function POST({ request }: { request: Request }) {
     const rawBody = await request.text();
     const signatureHeader = request.headers.get("paymongo-signature");
 
-    console.log("paymongo-signature header:", signatureHeader);
-
     if (!signatureHeader) {
       return new Response("Missing signature", { status: 400 });
     }
@@ -59,6 +57,18 @@ export async function POST({ request }: { request: Request }) {
       session.payment_intent?.attributes?.metadata?.transactionId ||
       payment?.metadata?.transactionId;
 
+    const startTime = session.metadata?.start ||
+      session.payment_intent?.attributes?.metadata?.start ||
+      payment?.metadata?.start;
+
+    const endTime = session.metadata?.end ||
+      session.payment_intent?.attributes?.metadata?.end ||
+      payment?.metadata?.end;
+
+    const venue = session.metadata?.venue ||
+      session.payment_intent?.attributes?.metadata?.venue ||
+      payment?.metadata?.venue;
+
     const paymentMethod =
       session.payment_method_used ||
       payment?.source?.type ||
@@ -85,7 +95,7 @@ export async function POST({ request }: { request: Request }) {
       } else {
         const subject = "Payment Successful - Booking Confirmation";
 
-        await sendConfirmationEmail(email, subject);
+        await sendConfirmationEmail(email, subject, { transactionId, startTime, endTime, venue });
 
         console.log("Confirmation email sent to: ", email);
       }

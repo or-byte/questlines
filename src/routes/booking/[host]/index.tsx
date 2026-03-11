@@ -210,7 +210,7 @@ export default function Host() {
           end: slot.end,
           productName: slot.productName,
           productPrice: slot.productPrice,
-
+          venue: `${host()?.name}`
         }
       );
 

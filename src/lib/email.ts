@@ -11,7 +11,7 @@ export async function getAccessToken() {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
     client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-    refresh_token: process.env.GMAIL_REFRESH_TOKEN!,
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN!,
     grant_type: "refresh_token",
   });
 
@@ -33,7 +33,15 @@ export async function getAccessToken() {
   return cachedToken;
 }
 
-export const sendConfirmationEmail = async (recipient: string, subject: string) => {
+export const sendConfirmationEmail = async (
+  recipient: string,
+  subject: string,
+  data: {
+    transactionId: number,
+    startTime: Date,
+    endTime: Date,
+    venue: string
+  }) => {
   const accessToken = await getAccessToken();
 
   const body = `
@@ -49,20 +57,20 @@ export const sendConfirmationEmail = async (recipient: string, subject: string) 
 
             <table style="width:100%; border-collapse:collapse; margin-top:15px;">
               <tr>
-                <td style="padding:8px 0; color:#555;"><strong>Booking ID</strong></td>
-                <td style="padding:8px 0;">#123456</td>
+                <td style="padding:8px 0; color:#555;"><strong>Transaction ID</strong></td>
+                <td style="padding:8px 0;">#${data.transactionId}</td>
               </tr>
               <tr>
                 <td style="padding:8px 0; color:#555;"><strong>Date</strong></td>
-                <td style="padding:8px 0;">March 10, 2026</td>
+                <td style="padding:8px 0;">${data.startTime.toLocaleString()} - ${data.endTime.toLocaleString()} </td>
               </tr>
               <tr>
-                <td style="padding:8px 0; color:#555;"><strong>Venue</strong></td>
-                <td style="padding:8px 0;">Main Hall</td>
+                <td style="padding:8px 0; color:#555;"><strong>Host</strong></td>
+                <td style="padding:8px 0;">${data.venue}</td>
               </tr>
               <tr>
                 <td style="padding:8px 0; color:#555;"><strong>Status</strong></td>
-                <td style="padding:8px 0; color:green;"><strong>Confirmed</strong></td>
+                <td style="padding:8px 0; color:green;"><strong>PAID</strong></td>
               </tr>
             </table>
 
@@ -73,7 +81,7 @@ export const sendConfirmationEmail = async (recipient: string, subject: string) 
             <hr style="margin:30px 0; border:none; border-top:1px solid #eee;"/>
 
             <p style="font-size:12px; color:#888;">
-              This is an automated confirmation email. Do not reply.
+              This is an automated confirmation email.
             </p>
 
           </div>
@@ -106,7 +114,6 @@ export const sendConfirmationEmail = async (recipient: string, subject: string) 
         body: JSON.stringify({ raw: base64Encoded }),
       }
     );
-    console.log(response);
 
     return await response.json();
   } catch (error) {
