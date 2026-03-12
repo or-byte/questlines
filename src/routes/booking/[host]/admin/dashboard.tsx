@@ -5,26 +5,34 @@ import Button from "~/components/button/Button";
 import { Skeleton } from "@kobalte/core/skeleton";
 import { getHostBySlug, getHostInformation, HostFormData, Information, InformationFormData, updateHost } from "~/lib/host";
 import { createNewProduct, getProductsByVenueId, ProductFormData, updateProduct } from "~/lib/products";
-import { getVenuesByHost } from "~/lib/venue";
+import { createNewVenue, getVenuesByHost, updateVenue, VenueFormData } from "~/lib/venue";
 import { createNewSchedule, deleteSchedule, getSchedules, ScheduleFormData, updateSchedule } from "~/lib/schedule";
 
 enum EditorStates {
   HOST,
+  VENUE,
   INFORMATION,
   PRODUCT,
   SCHEDULE,
   EVENT
 }
 
+const editorLabels = {
+  [EditorStates.HOST]: "Host",
+  [EditorStates.VENUE]: "Venue",
+  [EditorStates.INFORMATION]: "Information",
+  [EditorStates.PRODUCT]: "Product",
+  [EditorStates.SCHEDULE]: "Schedule",
+  [EditorStates.EVENT]: "Event",
+};
+
 export default function HostAdminDashboard() {
   const params = useParams();
 
   const [editorState, setEditorState] = createSignal<EditorStates>(EditorStates.PRODUCT);
 
-  // Host/Venue states
+  // Host State
   const [host, { refetch: refetchHost }] = createResource(() => params.host, getHostBySlug);
-  const [venues] = createResource(() => host()?.id, getVenuesByHost);
-  const [selectedVenueId, setSelectedVenue] = createSignal();
 
   const [hostForm, setHostForm] = createSignal<HostFormData>({
     slug: "",
@@ -56,10 +64,90 @@ export default function HostAdminDashboard() {
 
     try {
       await updateHost(host()?.id, data);
-      setEditorState(EditorStates.PRODUCT)
       refetchHost();
     } catch (err) {
       console.error("Failed to save changes when editing host", err);
+    }
+  };
+
+  // Venue States
+  const [venues, { refetch: refetchVenue }] = createResource(() => host()?.id, getVenuesByHost);
+  const [selectedVenueId, setSelectedVenue] = createSignal();
+
+  const [venueForm, setVenueForm] = createSignal<VenueFormData>({
+    slug: "",
+    name: "",
+    description: "",
+    address: "",
+    hostId: host()?.id
+  });
+
+  const updateVenueForm = <K extends keyof VenueFormData>(
+    field: K,
+    value: VenueFormData[K]
+  ) => {
+    setVenueForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }
+
+  const handleToggleEditVenue = async () => {
+    setEditorState(EditorStates.VENUE);
+    hydrateVenueEditor();
+  }
+
+  const hydrateVenueEditor = () => {
+    const venueId = selectedVenueId();
+    const venueList = venues();
+
+    if (!venueId || !venueList) return;
+
+    const venue = venueList.find(v => v.id === venueId);
+    if (!venue) return;
+
+    setVenueForm({
+      slug: venue.slug,
+      name: venue.name,
+      description: venue.description,
+      address: venue.address,
+      hostId: venue.hostId
+    });
+  };
+
+  const handleAddVenue = () => {
+    setEditorState(EditorStates.VENUE);
+    setSelectedVenue(null);
+
+    setVenueForm({
+      slug: "",
+      name: "",
+      description: "",
+      address: "",
+      hostId: host()?.id
+    });
+  };
+
+  const handleUpdateVenue = async () => {
+    const data = venueForm();
+    const venueId = selectedVenueId();
+
+    try {
+      if (venueId === null) {
+        // CREATE
+        await createNewVenue(data);
+        alert("Venue created!");
+      } else {
+        // UPDATE
+        await updateVenue(venueId, data);
+        alert("Venue updated!");
+      }
+
+      setSelectedVenue(undefined);
+      refetchVenue();
+
+    } catch (err) {
+      console.error("Failed to save venue", err);
     }
   };
 
@@ -79,6 +167,7 @@ export default function HostAdminDashboard() {
       [field]: value
     }));
   }
+
   const handleToggleEditInformation = async () => {
     setEditorState(EditorStates.INFORMATION);
   }
@@ -110,6 +199,7 @@ export default function HostAdminDashboard() {
 
   const handleSelectVenue = (venueId: number) => {
     setSelectedVenue(venueId);
+    hydrateVenueEditor();
     setSelectedProductId(undefined);
   };
 
@@ -245,6 +335,11 @@ export default function HostAdminDashboard() {
               Edit Host
             </Button>
             <Button
+              class={`${editorState() === EditorStates.VENUE ? "btn-selected" : "btn-unselected"}`}
+              onclick={handleToggleEditVenue}>
+              Edit Venue
+            </Button>
+            <Button
               class={`${editorState() === EditorStates.INFORMATION ? "btn-selected" : "btn-unselected"}`}
               onclick={handleToggleEditInformation}>
               Edit Info
@@ -270,9 +365,7 @@ export default function HostAdminDashboard() {
 
           {/* Current Editor State */}
           <p class="text-sm text-gray-500 mb-4">
-            {editorState() === EditorStates.PRODUCT && "Currently editing products"}
-            {editorState() === EditorStates.SCHEDULE && "Currently editing timeslots"}
-            {editorState() === EditorStates.EVENT && "Currently creating events"}
+            Currently editing {editorLabels[editorState()]}
           </p>
 
           {/* Host Editor */}
@@ -320,11 +413,108 @@ export default function HostAdminDashboard() {
 
           {/* Venues */}
           <div class="flex flex-col gap-2">
-            <h3 class="text-sm font-semibold">Venues</h3>
+
+            <Show
+              when={!venues.loading && (editorState() === EditorStates.PRODUCT || editorState() === EditorStates.SCHEDULE || editorState() === EditorStates.VENUE)}
+              fallback={
+                <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
+                  <For each={[1, 2, 3, 4]}>
+                    {() => (
+                      <Skeleton class="skeleton w-full h-20 rounded-lg" />
+                    )}
+                  </For>
+                </div>
+              }
+            >
+              <h3 class="text-sm font-semibold">Venues</h3>
+
+              <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2"></div>
+              <For each={venues()}>
+                {(v) => (
+                  <Button
+                    type="button"
+                    class={`text-left ${selectedVenueId() === v.id ? "btn-selected" : "btn-unselected"}`}
+                    onClick={[handleSelectVenue, v.id]}
+                  >
+                    {v.name}
+                  </Button>
+                )}
+              </For>
+
+              <Button
+                class="btn btn-primary mt-4"
+                onClick={handleAddVenue}>
+                + Add Venue
+              </Button>
+            </Show>
+          </div>
+
+          {/* Venue Editor */}
+          <Show when={editorState() === EditorStates.VENUE}>
+            <Show when={selectedVenueId() !== undefined}
+              fallback={
+                <div>Please select a venue to edit...</div>
+              }>
+
+              <div class="border rounded-lg p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-2 mt-4">
+
+                <h2 class="font-semibold text-lg">{selectedVenueId() === null ? "Add new venue" : "Edit Venue" }</h2>
+
+                {/* Slug */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Slug</label>
+                  <input
+                    class="border rounded px-3 py-2"
+                    value={venueForm().slug}
+                    onInput={(e) => updateVenueForm("slug", e.currentTarget.value)}
+                  />
+                </div>
+
+                {/* Name */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Name</label>
+                  <input
+                    class="border rounded px-3 py-2"
+                    value={venueForm().name}
+                    onInput={(e) => updateVenueForm("name", e.currentTarget.value)}
+                  />
+                </div>
+
+                {/* Description */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Description</label>
+                  <input
+                    class="border rounded px-3 py-2"
+                    value={venueForm().description}
+                    onInput={(e) => updateVenueForm("description", e.currentTarget.value)}
+                  />
+                </div>
+
+                {/* Address */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Address</label>
+                  <input
+                    class="border rounded px-3 py-2"
+                    value={venueForm().address}
+                    onInput={(e) => updateVenueForm("address", e.currentTarget.value)}
+                  />
+                </div>
+
+                {/* Save button */}
+                <Button class="btn mt-2" onClick={handleUpdateVenue}>
+                  Save Changes
+                </Button>
+              </div>
+            </Show>
+          </Show>
+
+
+          {/* Products List */}
+          <div class="flex flex-col gap-2 mt-4">
 
             <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
               <Show
-                when={!venues.loading && (editorState() === EditorStates.PRODUCT || editorState() === EditorStates.SCHEDULE)}
+                when={!products.loading && products() && (editorState() === EditorStates.PRODUCT || editorState() === EditorStates.SCHEDULE)}
                 fallback={
                   <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
                     <For each={[1, 2, 3, 4]}>
@@ -335,254 +525,220 @@ export default function HostAdminDashboard() {
                   </div>
                 }
               >
-                <For each={venues()}>
-                  {(v) => (
+                <h3 class="text-sm font-semibold">Products</h3>
+
+                <For each={products()}>
+                  {(p) => (
                     <Button
-                      type="button"
-                      class={`text-left ${selectedVenueId() === v.id ? "btn-selected" : "btn-unselected"}`}
-                      onClick={[handleSelectVenue, v.id]}
+                      class={`min-w-[140px] text-left ${selectedProductId() === p.id ? "btn-selected" : "btn-unselected"}`}
+                      onClick={[handleSelectProduct, p.id]}
                     >
-                      {v.name}
+                      {p.name}
                     </Button>
                   )}
                 </For>
 
-                <Button class="btn btn-primary mt-4">
-                  + Add Venue
+                {/* Add Product */}
+                <Button
+                  class="btn btn-primary mt-4 min-w-[140px]"
+                  onClick={handleAddProduct}
+                >
+                  + Add Product
                 </Button>
               </Show>
             </div>
+          </div>
 
-            {/* Products */}
-            <div class="flex flex-col gap-2">
-              <h3 class="text-sm font-semibold">Products</h3>
+          <Show when={selectedProductId() !== undefined}>
+            <Show when={editorState() === EditorStates.PRODUCT}>
+              {/* Product Editor */}
+              <div class="border rounded-lg p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-2">
 
-              <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
-                <Show
-                  when={!products.loading && products()}
-                  fallback={
-                    <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
-                      <For each={[1, 2, 3, 4]}>
-                        {() => (
-                          <Skeleton class="skeleton w-full h-20 rounded-lg" />
-                        )}
-                      </For>
-                    </div>
-                  }
-                >
-                  <For each={products()}>
-                    {(p) => (
-                      <Button
-                        class={`min-w-[140px] text-left ${selectedProductId() === p.id ? "btn-selected" : "btn-unselected"}`}
-                        onClick={[handleSelectProduct, p.id]}
-                      >
-                        {p.name}
-                      </Button>
-                    )}
-                  </For>
+                <h2 class="font-semibold text-lg">Product Editor</h2>
 
-                  {/* Add Product */}
-                  <Button
-                    class="btn btn-primary mt-4 min-w-[140px]"
-                    onClick={handleAddProduct}
-                  >
-                    + Add Product
-                  </Button>
-                </Show>
-              </div>
-            </div>
-
-            <Show when={selectedProductId() !== undefined}>
-              <Show when={editorState() === EditorStates.PRODUCT}>
-                {/* Product Editor */}
-                <div class="border rounded-lg p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-2">
-
-                  <h2 class="font-semibold text-lg">Product Editor</h2>
-
-                  {/* Sku */}
-                  <div class="flex flex-col gap-1">
-                    <label class="text-sm text-gray-600">SKU</label>
-                    <input
-                      class="border rounded px-3 py-2"
-                      value={productForm().sku}
-                      onInput={(e) => updateProductField("sku", e.currentTarget.value)}
-                    />
-                  </div>
-
-                  {/* Name */}
-                  <div class="flex flex-col gap-1">
-                    <label class="text-sm text-gray-600">Name</label>
-                    <input
-                      class="border rounded px-3 py-2"
-                      value={productForm().name}
-                      onInput={(e) => updateProductField("name", e.currentTarget.value)}
-                    />
-                  </div>
-
-                  {/* Descriptoin */}
-                  <div class="flex flex-col gap-1">
-                    <label class="text-sm text-gray-600">Description</label>
-                    <textarea
-                      class="border rounded px-3 py-2"
-                      rows="3"
-                      value={productForm().description}
-                      onInput={(e) => updateProductField("description", e.currentTarget.value)}
-                    />
-                  </div>
-
-                  {/* Price */}
-                  <div class="flex flex-col gap-1">
-                    <label class="text-sm text-gray-600">Price</label>
-                    <input
-                      type="number"
-                      class="border rounded px-3 py-2"
-                      value={productForm().price}
-                      onInput={(e) => updateProductField("price", Number(e.currentTarget.value))}
-                    />
-                  </div>
-
-                  {/* Save button */}
-                  <Button class="btn mt-2" onClick={handleSaveProduct}>
-                    Save Product
-                  </Button>
+                {/* Sku */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">SKU</label>
+                  <input
+                    class="border rounded px-3 py-2"
+                    value={productForm().sku}
+                    onInput={(e) => updateProductField("sku", e.currentTarget.value)}
+                  />
                 </div>
-              </Show>
 
-              <Show when={editorState() === EditorStates.SCHEDULE}>
-                <Show when={!schedules.loading} fallback={<p>Loading schedules...</p>}>
-                  {/* Schedule List Sorted by Time */}
-                  <div class="flex flex-col gap-2">
-                    <h3 class="text-sm font-semibold">Time Slots</h3>
+                {/* Name */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Name</label>
+                  <input
+                    class="border rounded px-3 py-2"
+                    value={productForm().name}
+                    onInput={(e) => updateProductField("name", e.currentTarget.value)}
+                  />
+                </div>
 
-                    <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
-                      <For each={(() => {
-                        const allSchedules = schedules() ?? [];
-                        const grouped: Record<string, ScheduleFormData[]> = {};
+                {/* Descriptoin */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Description</label>
+                  <textarea
+                    class="border rounded px-3 py-2"
+                    rows="3"
+                    value={productForm().description}
+                    onInput={(e) => updateProductField("description", e.currentTarget.value)}
+                  />
+                </div>
 
-                        // Group schedules by time
-                        allSchedules.forEach(s => {
-                          const key = `${new Date(s.startTime).getTime()}-${new Date(s.endTime).getTime()}`;
-                          if (!grouped[key]) grouped[key] = [];
-                          grouped[key].push(s);
+                {/* Price */}
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm text-gray-600">Price</label>
+                  <input
+                    type="number"
+                    class="border rounded px-3 py-2"
+                    value={productForm().price}
+                    onInput={(e) => updateProductField("price", Number(e.currentTarget.value))}
+                  />
+                </div>
+
+                {/* Save button */}
+                <Button class="btn mt-2" onClick={handleSaveProduct}>
+                  Save Product
+                </Button>
+              </div>
+            </Show>
+
+            <Show when={editorState() === EditorStates.SCHEDULE}>
+              <Show when={!schedules.loading} fallback={<p>Loading schedules...</p>}>
+                {/* Schedule List Sorted by Time */}
+                <div class="flex flex-col gap-2">
+                  <h3 class="text-sm font-semibold">Time Slots</h3>
+
+                  <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-visible pb-2">
+                    <For each={(() => {
+                      const allSchedules = schedules() ?? [];
+                      const grouped: Record<string, ScheduleFormData[]> = {};
+
+                      // Group schedules by time
+                      allSchedules.forEach(s => {
+                        const key = `${new Date(s.startTime).getTime()}-${new Date(s.endTime).getTime()}`;
+                        if (!grouped[key]) grouped[key] = [];
+                        grouped[key].push(s);
+                      });
+
+                      return Object.values(grouped);
+                    })()}>
+                      {(slotGroup) => {
+                        const s = slotGroup[0];
+                        const days = slotGroup.map(s => s.dayOfWeek);
+                        const isSelected = days.some(day => selectedDays().includes(day));
+
+                        return (
+                          <Button
+                            class={`min-w-[120px] btn text-sm ${isSelected ? "btn-selected" : "btn-unselected"}`}
+                            onClick={() => {
+                              setSelectedScheduleId(s.id);
+                              setSelectedDays(days);
+                              updateScheduleField("startTime", new Date(s.startTime));
+                              updateScheduleField("endTime", new Date(s.endTime));
+                            }}
+                          >
+                            {`${new Date(s.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(s.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                          </Button>
+                        );
+                      }}
+                    </For>
+
+                    {/* Add Schedule */}
+                    <Button
+                      class="btn btn-primary mt-2 min-w-[120px]"
+                      onClick={() => {
+                        setSelectedScheduleId(null);
+                        setSelectedDays([]);
+                        setScheduleForm({
+                          productId: selectedProductId() ?? 0,
+                          dayOfWeek: 0,
+                          startTime: new Date(),
+                          endTime: new Date(),
                         });
-
-                        return Object.values(grouped);
-                      })()}>
-                        {(slotGroup) => {
-                          const s = slotGroup[0];
-                          const days = slotGroup.map(s => s.dayOfWeek);
-                          const isSelected = days.some(day => selectedDays().includes(day));
-
-                          return (
-                            <Button
-                              class={`min-w-[120px] btn text-sm ${isSelected ? "btn-selected" : "btn-unselected"}`}
-                              onClick={() => {
-                                setSelectedScheduleId(s.id);
-                                setSelectedDays(days);
-                                updateScheduleField("startTime", new Date(s.startTime));
-                                updateScheduleField("endTime", new Date(s.endTime));
-                              }}
-                            >
-                              {`${new Date(s.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(s.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-                            </Button>
-                          );
-                        }}
-                      </For>
-
-                      {/* Add Schedule */}
-                      <Button
-                        class="btn btn-primary mt-2 min-w-[120px]"
-                        onClick={() => {
-                          setSelectedScheduleId(null);
-                          setSelectedDays([]);
-                          setScheduleForm({
-                            productId: selectedProductId() ?? 0,
-                            dayOfWeek: 0,
-                            startTime: new Date(),
-                            endTime: new Date(),
-                          });
-                        }}
-                      >
-                        + Add Schedule
-                      </Button>
-                    </div>
+                      }}
+                    >
+                      + Add Schedule
+                    </Button>
                   </div>
+                </div>
 
-                  {/* Schedule Editor */}
-                  <Show when={selectedScheduleId() !== undefined || selectedScheduleId() === null}>
-                    <div class="border rounded-lg p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-2">
-                      <h2 class="font-semibold text-lg">Schedule Editor</h2>
+                {/* Schedule Editor */}
+                <Show when={selectedScheduleId() !== undefined || selectedScheduleId() === null}>
+                  <div class="border rounded-lg p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-2">
+                    <h2 class="font-semibold text-lg">Schedule Editor</h2>
 
-                      {/* Multi-Day Picker */}
-                      <div class="flex flex-wrap gap-2">
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => {
-                          const selected = selectedDays().includes(index);
-                          return (
-                            <button
-                              type="button"
-                              class={`btn text-sm ${selected ? "btn-selected" : "btn-unselected"}`}
-                              onClick={() => {
-                                const current = selectedDays();
-                                const newDays = current.includes(index)
-                                  ? current.filter(d => d !== index) // deselect
-                                  : [...current, index];             // select
-                                setSelectedDays(newDays);
-                                updateScheduleField("selectedDays", newDays);
-                              }}
-                            >
-                              {day}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Start Time */}
-                      <div class="flex flex-col gap-1">
-                        <label class="text-sm text-gray-600">Start Time</label>
-                        <input
-                          type="time"
-                          class="border rounded px-3 py-2"
-                          value={scheduleForm().startTime.toTimeString().substring(0, 5)}
-                          onInput={(e) => {
-                            const [h, m] = e.currentTarget.value.split(":").map(Number);
-                            const current = scheduleForm().startTime;
-                            const updated = new Date(current);
-                            updated.setHours(h, m, 0, 0);
-                            updateScheduleField("startTime", updated);
-                          }}
-                        />
-                      </div>
-
-                      {/* End Time */}
-                      <div class="flex flex-col gap-1">
-                        <label class="text-sm text-gray-600">End Time</label>
-                        <input
-                          type="time"
-                          class="border rounded px-3 py-2"
-                          value={scheduleForm().endTime.toTimeString().substring(0, 5)}
-                          onInput={(e) => {
-                            const [h, m] = e.currentTarget.value.split(":").map(Number);
-                            const current = scheduleForm().endTime;
-                            const updated = new Date(current);
-                            updated.setHours(h, m, 0, 0);
-                            updateScheduleField("endTime", updated);
-                          }}
-                        />
-                      </div>
-
-                      {/* Save Button */}
-                      <Button
-                        class="btn mt-2"
-                        onClick={handleSaveSchedule}
-                      >
-                        Save Schedule
-                      </Button>
+                    {/* Multi-Day Picker */}
+                    <div class="flex flex-wrap gap-2">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => {
+                        const selected = selectedDays().includes(index);
+                        return (
+                          <button
+                            type="button"
+                            class={`btn text-sm ${selected ? "btn-selected" : "btn-unselected"}`}
+                            onClick={() => {
+                              const current = selectedDays();
+                              const newDays = current.includes(index)
+                                ? current.filter(d => d !== index) // deselect
+                                : [...current, index];             // select
+                              setSelectedDays(newDays);
+                              updateScheduleField("selectedDays", newDays);
+                            }}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
                     </div>
-                  </Show>
+
+                    {/* Start Time */}
+                    <div class="flex flex-col gap-1">
+                      <label class="text-sm text-gray-600">Start Time</label>
+                      <input
+                        type="time"
+                        class="border rounded px-3 py-2"
+                        value={scheduleForm().startTime.toTimeString().substring(0, 5)}
+                        onInput={(e) => {
+                          const [h, m] = e.currentTarget.value.split(":").map(Number);
+                          const current = scheduleForm().startTime;
+                          const updated = new Date(current);
+                          updated.setHours(h, m, 0, 0);
+                          updateScheduleField("startTime", updated);
+                        }}
+                      />
+                    </div>
+
+                    {/* End Time */}
+                    <div class="flex flex-col gap-1">
+                      <label class="text-sm text-gray-600">End Time</label>
+                      <input
+                        type="time"
+                        class="border rounded px-3 py-2"
+                        value={scheduleForm().endTime.toTimeString().substring(0, 5)}
+                        onInput={(e) => {
+                          const [h, m] = e.currentTarget.value.split(":").map(Number);
+                          const current = scheduleForm().endTime;
+                          const updated = new Date(current);
+                          updated.setHours(h, m, 0, 0);
+                          updateScheduleField("endTime", updated);
+                        }}
+                      />
+                    </div>
+
+                    {/* Save Button */}
+                    <Button
+                      class="btn mt-2"
+                      onClick={handleSaveSchedule}
+                    >
+                      Save Schedule
+                    </Button>
+                  </div>
                 </Show>
               </Show>
             </Show>
-          </div>
+          </Show>
         </Show>
       </div >
     </main >

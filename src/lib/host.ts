@@ -45,7 +45,7 @@ export const getHostInformation = async (id: number): Promise<InformationBlock[]
 
   for (let i = 0; i < info.length; i++) {
     const details = await prisma.informationDetail.findMany({
-      where: { informationId: info[i].id}
+      where: { informationId: info[i].id }
     })
     const block: InformationBlock = {
       header: info[i],
@@ -60,8 +60,12 @@ export const getHostInformation = async (id: number): Promise<InformationBlock[]
 export const updateHost = async (hostId: number, form: HostFormData) => {
   "use server"
 
+  if (!form.name || !form.slug) {
+    throw new Error("Name and slug are required");
+  }
+
   return await prisma.host.update({
-    where: { id: hostId},
+    where: { id: hostId },
     data: {
       slug: form.slug,
       name: form.name,
