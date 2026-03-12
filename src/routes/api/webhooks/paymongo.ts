@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { sendConfirmationEmail } from "~/lib/email";
 import prisma from "~/lib/prisma";
 
 const WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET!.trim();
@@ -7,8 +8,6 @@ export async function POST({ request }: { request: Request }) {
   try {
     const rawBody = await request.text();
     const signatureHeader = request.headers.get("paymongo-signature");
-
-    console.log("paymongo-signature header:", signatureHeader);
 
     if (!signatureHeader) {
       return new Response("Missing signature", { status: 400 });
@@ -58,12 +57,25 @@ export async function POST({ request }: { request: Request }) {
       session.payment_intent?.attributes?.metadata?.transactionId ||
       payment?.metadata?.transactionId;
 
+    const startTime = session.metadata?.start ||
+      session.payment_intent?.attributes?.metadata?.start ||
+      payment?.metadata?.start;
+
+    const endTime = session.metadata?.end ||
+      session.payment_intent?.attributes?.metadata?.end ||
+      payment?.metadata?.end;
+
+    const venue = session.metadata?.venue ||
+      session.payment_intent?.attributes?.metadata?.venue ||
+      payment?.metadata?.venue;
+
     const paymentMethod =
       session.payment_method_used ||
       payment?.source?.type ||
       "unknown";
 
     const amountPaid = payment?.amount != null ? payment.amount / 100 : 0;
+    const email = session.billing?.email || session.customer_email || payment?.billing?.email || null;
 
     if (!transactionId) {
       console.warn("No transactionId in metadata");
@@ -75,7 +87,18 @@ export async function POST({ request }: { request: Request }) {
         where: { id: Number(transactionId), status: "PENDING" },
         data: { status: "PAID", paymentMethod: paymentMethod, amountPaid: amountPaid },
       });
-      console.log("Transaction marked as PAID:", transactionId);
+      console.log(`Transaction ${transactionId} marked as PAID.`);
+
+      // Send email to user that payment was successful
+      if (!email) {
+        console.warn("No customer email found for transaction:", transactionId);
+      } else {
+        const subject = "Payment Successful - Booking Confirmation";
+
+        await sendConfirmationEmail(email, subject, { transactionId, startTime, endTime, venue });
+
+        console.log("Confirmation email sent to: ", email);
+      }
     }
 
     return new Response("OK", { status: 200 });

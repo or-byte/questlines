@@ -7,6 +7,7 @@ export async function createPaymongoCheckout(
     end: Date;
     productName: string;
     productPrice: number;
+    venue: string;
   }) {
   "use server";
 
@@ -31,7 +32,10 @@ export async function createPaymongoCheckout(
           success_url: `${process.env.ORIGIN}/success?t=${transactionId}`,
           cancel_url: `${process.env.ORIGIN}/cancel`,
           metadata: {
-            transactionId: transactionId.toString()
+            transactionId: transactionId.toString(),
+            start: data.start,
+            end: data.end,
+            venue: data.venue
           },
         },
       },
