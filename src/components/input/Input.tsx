@@ -1,28 +1,32 @@
 import { TextField } from "@kobalte/core/text-field";
 import type { TextFieldInputProps } from "@kobalte/core/text-field";
+import { splitProps } from "solid-js";
 
 type InputProps = {
     label: string;
     important?: boolean;
     type?: string;
     placeholder?: string;
+    onChange?: (value: string) => void;
 } & TextFieldInputProps;
 
 export default function Input(props: InputProps) {
+    const [local, rest] = splitProps(props, ["label", "important", "type", "placeholder", "onChange"]);
+
     return (
-        <TextField class="flex flex-col gap-2 items-baseline w-full">
+        <TextField class="flex flex-col gap-2 items-baseline w-full" onChange={local.onChange}>
             <TextField.Label class="body-2 text-gray-600">
-                {props.label}
-                {props.important && (
+                {local.label}
+                {local.important && (
                     <span class="ml-1">*</span>
                 )}
             </TextField.Label>
             <TextField.Input
-                {...props}
-                type={props.type ?? "text"}
-                placeholder={props.placeholder}
-                required={props.important}
-                aria-required={props.important}
+                {...rest}
+                type={local.type ?? "text"}
+                placeholder={local.placeholder}
+                required={local.important}
+                aria-required={local.important}
                 class="
                 h-[50px] w-full rounded-lg border border-[var(--color-border-1)] px-3
                 hover:border-[var(--color-accent-1)]
