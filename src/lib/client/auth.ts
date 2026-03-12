@@ -7,7 +7,6 @@ const authClient = createAuthClient({
 export const signInWithGoogle = () =>
   authClient.signIn.social({ 
     provider: "google",
-    scopes: ["https://www.googleapis.com/auth/gmail.send"], 
   });
 
 export const signOut = authClient.signOut;
