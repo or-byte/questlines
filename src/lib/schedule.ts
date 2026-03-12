@@ -74,6 +74,28 @@ export const createNewSchedule = async (form: ScheduleFormData) => {
   }
 };
 
+export const updateSchedule = async (id: number, form: ScheduleFormData) => {
+  "use server"
+
+  return prisma.schedule.update({
+    where: { id },
+    data: {
+      productId: form.productId,
+      dayOfWeek: form.dayOfWeek,
+      startTime: form.startTime,
+      endTime: form.endTime
+    }
+  })
+}
+
+export const deleteSchedule = async (id: number) => {
+  "use server"
+
+  return prisma.schedule.delete({
+    where: { id }
+  })
+}
+
 export const formatSchedules = (schedule: Schedule) => {
   const today = new Date();
 
