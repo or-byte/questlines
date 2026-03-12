@@ -1,9 +1,9 @@
 import { Title } from "@solidjs/meta";
 import { useParams } from "@solidjs/router";
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import Button from "~/components/button/Button";
 import { Skeleton } from "@kobalte/core/skeleton";
-import { getHostBySlug, getHostInformation, HostFormData, Information, InformationFormData, updateHost } from "~/lib/host";
+import { createNewInformationBlock, deleteInformationBlock, getHostBySlug, getHostInformation, HostFormData, Information, InformationBlock, InformationFormData, updateHost, updateInformationBlock } from "~/lib/host";
 import { createNewProduct, getProductsByVenueId, ProductFormData, updateProduct } from "~/lib/products";
 import { createNewVenue, getVenuesByHost, updateVenue, VenueFormData } from "~/lib/venue";
 import { createNewSchedule, deleteSchedule, getSchedules, ScheduleFormData, updateSchedule } from "~/lib/schedule";
@@ -151,27 +151,138 @@ export default function HostAdminDashboard() {
     }
   };
 
-  // Information states
-  const [hostInfo] = createResource(() => host()?.id, getHostInformation);
-  const [informationForm, setInformationForm] = createSignal<InformationFormData>({
-    header: "",
-    body: []
+  // Information
+
+  const [hostInfo, { refetch: refetchHostInfo}] = createResource(() => host()?.id, getHostInformation);
+
+  createEffect(() => {
+    if (hostInfo() && editorState() === EditorStates.INFORMATION) {
+      hydrateInformationForm(hostInfo());
+    }
   });
 
-  const updateInformationForm = <K extends keyof InformationFormData>(
-    field: K,
-    value: InformationFormData[K]
-  ) => {
-    setInformationForm(prev => ({
+  const [informationForm, setInformationForm] = createSignal<InformationFormData[]>([]);
+  const [removedBlockIds, setRemovedBlockIds] = createSignal<number[]>([]);
+
+  const updateHeader = (blockIndex: number, value: string) => {
+    setInformationForm(prev => {
+      const updated = [...prev];
+      updated[blockIndex].header = value;
+      return updated;
+    });
+  };
+
+  const updateBodyLine = (blockIndex: number, lineIndex: number, value: string) => {
+    setInformationForm(prev => {
+      const updated = [...prev];
+      updated[blockIndex].body[lineIndex].text = value;
+      return updated;
+    });
+  };
+
+
+  const addInformationBlock = () => {
+    setInformationForm(prev => [
       ...prev,
-      [field]: value
+      { header: "", body: [{ text: "", icon: "" }] }
+    ]);
+  };
+
+  const removeInformationBlock = (blockIndex: number) => {
+    setInformationForm(prev => prev.filter((_, i) => i !== blockIndex));
+  };
+
+  const updateInformationHeader = (index: number, value: string) => {
+    setInformationForm(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        header: { ...updated[index].header, title: value }
+      };
+      return updated;
+    });
+  };
+
+  const addParagraphToBlock = (blockIndex: number) => {
+    setInformationForm(prev => {
+      const updated = [...prev];
+      updated[blockIndex] = {
+        ...updated[blockIndex],
+        body: [...updated[blockIndex].body, { text: "", icon: "" }]
+      };
+      return updated;
+    });
+  };
+
+  const removeParagraphFromBlock = (blockIndex: number, lineIndex: number) => {
+    setInformationForm(prev => {
+      const updated = [...prev];
+      updated[blockIndex] = {
+        ...updated[blockIndex],
+        body: updated[blockIndex].body.filter((_, i) => i !== lineIndex)
+      };
+      return updated;
+    });
+  };
+
+  const updateBlockBodyIcon = (blockIndex: number, bodyIndex: number, value: string) => {
+    setInformationForm(prev => {
+      const blocks = [...prev];
+      blocks[blockIndex].body[bodyIndex].icon = value;
+      return blocks;
+    });
+  };
+
+  const hydrateInformationForm = (infoBlocks: InformationBlock[]) => {
+    const formatted: InformationFormData[] = infoBlocks.map(block => ({
+      header: block.header?.title || "",
+      body: (block.body || []).map(detail => ({
+        text: detail.text || "",
+        icon: detail.icon || ""
+      }))
     }));
-  }
+    setInformationForm(formatted);
+  };
 
-  const handleToggleEditInformation = async () => {
+  const handleToggleEditInformation = () => {
     setEditorState(EditorStates.INFORMATION);
-  }
 
+    const block = hostInfo()?.[0];
+    if (!block) {
+      setInformationForm([{ header: "", body: [{ text: "", icon: "" }] }]);
+    } else {
+      hydrateInformationForm(hostInfo());
+    }
+  };
+
+  const handleSaveInformation = async () => {
+    const formData = informationForm();
+
+    try {
+      // DELETE removed blocks
+      const removedIds = removedBlockIds();
+      for (const id of removedIds) {
+        await deleteInformationBlock(id);
+      }
+
+      // CREATE/UPDATE remaining blocks
+      for (const block of formData) {
+        if (block.id) {
+          await updateInformationBlock(block.id, block);
+        } else {
+          await createNewInformationBlock(host()?.id, block);
+        }
+      }
+
+      setRemovedBlockIds([]);
+
+      alert("Information saved!");
+      refetchHostInfo();
+    } catch (err) {
+      console.error("Failed to save information", err);
+    }
+  };
+  
   // Product States
   const [products, { refetch: refetchProducts }] = createResource(() => selectedVenueId(), getProductsByVenueId);
   const [selectedProductId, setSelectedProductId] = createSignal();
@@ -386,7 +497,7 @@ export default function HostAdminDashboard() {
 
               {/* Name */}
               <div class="flex flex-col gap-1">
-                <label class="text-sm text-gray-600">Name</label>
+                <label class="text-sm`text-gray-600">Name</label>
                 <input
                   class="border rounded px-3 py-2"
                   value={hostForm().name}
@@ -409,6 +520,100 @@ export default function HostAdminDashboard() {
                 Save Changes
               </Button>
             </div>
+          </Show>
+
+          {/* Host Information Editor */}
+          <Show when={editorState() === EditorStates.INFORMATION}>
+            <Show when={!hostInfo.loading} fallback={<p>Loading information...</p>}>
+              <div class="flex flex-col gap-6 mt-4">
+
+                <For each={informationForm()}>
+                  {(block, blockIndex) => {
+                    const bIndex = blockIndex();
+                    return (
+                      <div class="border rounded-lg p-4 flex flex-col gap-4">
+
+                        {/* Block Header */}
+                        <div class="flex flex-col gap-1">
+                          <label class="text-sm text-gray-600">Header</label>
+                          <input
+                            class="border rounded px-3 py-2"
+                            value={block.header}
+                            onInput={(e) =>
+                              setInformationForm(prev => {
+                                const updated = [...prev];
+                                updated[bIndex].header = e.currentTarget.value;
+                                return updated;
+                              })
+                            }
+                          />
+                        </div>
+
+                        {/* Body Lines */}
+                        <div class="flex flex-col gap-2">
+                          <label class="text-sm text-gray-600">Body</label>
+
+                          <For each={block.body}>
+                            {(line, lineIndex) => {
+                              const lIndex = lineIndex();
+                              return (
+                                <div class="flex gap-2">
+                                  <input
+                                    class="border rounded px-3 py-2 w-full"
+                                    value={line.text}
+                                    onInput={(e) =>
+                                      setInformationForm(prev => {
+                                        const updated = [...prev];
+                                        updated[bIndex].body[lIndex].text = e.currentTarget.value;
+                                        return updated;
+                                      })
+                                    }
+                                  />
+                                  <Button
+                                    class="btn"
+                                    onClick={() => {
+                                      removeParagraphFromBlock(blockIndex(), lineIndex())
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              );
+                            }}
+                          </For>
+
+                          <Button
+                            class="btn mt-2"
+                            onClick={[addParagraphToBlock, blockIndex()]}
+                          >
+                            + Add Paragraph
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  }}
+                </For>
+
+                {/* Add new information block */}
+                <Button
+                  class="btn btn-primary mt-4"
+                  onClick={() =>
+                    setInformationForm(prev => [
+                      ...prev,
+                      { header: "", body: [{ text: "", icon: "" }] }
+                    ])
+                  }
+                >
+                  + Add Information Block
+                </Button>
+
+                {/* Save All */}
+                <Button class="btn mt-6" onClick={handleSaveInformation}>
+                  Save All Changes
+                </Button>
+
+              </div>
+            </Show>
           </Show>
 
           {/* Venues */}
@@ -458,7 +663,7 @@ export default function HostAdminDashboard() {
 
               <div class="border rounded-lg p-4 flex flex-col gap-4 md:col-span-2 lg:col-span-2 mt-4">
 
-                <h2 class="font-semibold text-lg">{selectedVenueId() === null ? "Add new venue" : "Edit Venue" }</h2>
+                <h2 class="font-semibold text-lg">{selectedVenueId() === null ? "Add new venue" : "Edit Venue"}</h2>
 
                 {/* Slug */}
                 <div class="flex flex-col gap-1">
@@ -507,7 +712,6 @@ export default function HostAdminDashboard() {
               </div>
             </Show>
           </Show>
-
 
           {/* Products List */}
           <div class="flex flex-col gap-2 mt-4">
