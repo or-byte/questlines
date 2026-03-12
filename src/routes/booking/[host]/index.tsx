@@ -17,6 +17,12 @@ import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
+import Modal from "~/components/modal/Modal";
+import Dropdown from "~/components/dropdown/Dropdown";
+import Input from "~/components/input/Input";
+import TimePicker from "~/components/timepicker/TimePicker";
+import Button from "~/components/button/Button";
+import { useScheduleForm } from "../../hooks/useScheduleForm";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
@@ -26,6 +32,7 @@ const DateTimePickerClient = clientOnly(
 export default function Host() {
   const session = useSession();
   const navigate = useNavigate();
+  const form = useScheduleForm();
 
   createEffect(() => {
     const user = session()?.data?.user;
@@ -289,14 +296,33 @@ export default function Host() {
 
               {/* Time Slots / Upcoming Schedules */}
               <div>
-                <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl text-justify mb-3 sm:mb-4">
+                <div class="flex items-center justify-between mb-3">
                   <Show when={selectedCourtId()}>
-                    Upcoming Schedules for {" "}
-                    {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
+                    <h2 class="text-[var(--color-text-1)] text-xl sm:text-2xl">
+                      {venues()?.find(v => v.id === venueId())?.name || "Selected Venue"}
+                    </h2>
+                    {/* Modal Component */}
+                    <Modal title="New Schedule" triggerLabel="New Schedule">
+                      <DateTimePickerClient onChange={form.setDate} />
+                      <TimePicker label="Time Start" onChange={form.setTimeStart} />
+                      <TimePicker label="Time End" onChange={form.setTimeEnd} />
+                      <Input
+                        label="Max Participants"
+                        important={false}
+                        type="number"
+                        placeholder="e.g. 20"
+                        onInput={(e) => form.setMaxParticipants(e.currentTarget.value)}
+                      />
+                      <Dropdown
+                        placeholder="Select an option"
+                        onSelect={(item) => form.setCategory(item)}
+                        items={[{ label: "Profile" }, { label: "Settings" }]}
+                      />
+                      <Button class="btn" onClick={form.handleCreate}>Create Schedule</Button>
+                    </Modal>
                   </Show>
-                </h2>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-center lg:gap-6 w-full">
                   <For each={allSchedules.loading ? Array(10) : slotsForDay()}>
                     {(slot) =>
                       allSchedules.loading || transactions.loading ? (
