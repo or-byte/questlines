@@ -1,7 +1,8 @@
 import DatePicker from "@rnwonder/solid-date-picker";
 import "@rnwonder/solid-date-picker/dist/style.css";
 import "@rnwonder/solid-date-picker/themes/shad-cn-ui";
-import { MdFillCalendar_month } from 'solid-icons/md'
+import { MdFillCalendar_month } from 'solid-icons/md';
+import Button from "../button/Button";
 
 export default function DatePickerClient(props: any) {
   const handleChange = (data: any) => {
@@ -41,7 +42,13 @@ export default function DatePickerClient(props: any) {
               class="w-full rounded-[10px] bg-[var(--color-bg-2)] px-4 py-3 pr-14 placeholder:text-gray-400 focus:outline-none cursor-pointer border border-[var(--color-accent-1)]"
             />
 
-            <MdFillCalendar_month size={20} color="var(--color-accent-1)" class="absolute right-5 top-1/2 -translate-y-1/2" />
+            <Button
+              type="button"
+              onClick={showDate}
+              class="absolute right-5 top-1/2 -translate-y-1/2 hover:cursor-pointer"
+            >
+              <MdFillCalendar_month size={20} color="var(--color-accent-1)" />
+            </Button>
           </div>
         )
       }}
