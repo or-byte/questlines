@@ -21,8 +21,9 @@ export async function getAccessToken() {
     body: params.toString(),
   });
 
-  console.log(response);
   if (!response.ok) {
+    const text = await response.text();
+    console.error("Google OAuth error: ", text);
     throw new Error("Failed to refresh access token");
   }
 
