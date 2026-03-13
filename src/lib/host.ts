@@ -55,34 +55,6 @@ export const getHostInformation = async (id: number): Promise<InformationBlock[]
   return hostInfo;
 };
 
-export const createNewInformationBlock = async (hostId: number, form: InformationFormData) => {
-  "use server"
-
-  const maxOrder = await prisma.information.aggregate({
-    where: { hostId },
-    _max: { order: true }
-  });
-
-  const nextOrder = (maxOrder._max.order ?? 0) + 1;
-
-  return await prisma.information.create({
-    data: {
-      title: form.header,
-      hostId: hostId,
-      informationDetails: {
-        create: form.body.map((line, index) => ({
-          text: line.text,
-          icon: line.icon ?? null,
-          order: index
-        }))
-      },
-    },
-    include: {
-      informationDetails: true
-    }
-  })
-}
-
 export const updateHost = async (hostId: number, form: HostFormData) => {
   "use server"
 
@@ -97,39 +69,5 @@ export const updateHost = async (hostId: number, form: HostFormData) => {
       name: form.name,
       description: form.description
     }
-  });
-}
-
-export const updateInformationBlock = async (infoId: number, form: InformationFormData) => {
-  "use server"
-
-  await prisma.information.update({
-    where: { id: infoId },
-    data: { title: form.header }
-  })
-
-  for (const detail of form.body) {
-    await prisma.informationDetail.update({
-      where: { informationId: detail.id },
-      data: {
-        icon: detail.icon,
-        text: detail.text,
-        order: detail.order
-      }
-    })
-  }
-}
-
-export const deleteInformationBlock = async (id: number) => {
-  "use server"
-
-  // delete info details
-  await prisma.informationDetail.deleteMany({
-    where: { informationId: id }
-  });
-
-  // delete information
-  await prisma.informationDetail.delete({
-    where: { id }
   });
 }
