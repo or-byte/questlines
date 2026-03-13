@@ -80,8 +80,16 @@ p {
 }
 
 @layer components {
+
+  .btn,
+  .btn-selected,
+  .btn-unselected {
+    @apply py-2 px-6 rounded-[10px] transition-colors duration-200;
+    box-sizing: border-box;
+  }
+
   .btn {
-    @apply py-2 px-6 bg-[var(--color-accent-1)] rounded-[10px] cursor-pointer transition-colors duration-200 text-white;
+    @apply bg-[var(--color-accent-1)] text-white border border-transparent cursor-pointer;
   }
 
   .btn:hover {
@@ -94,6 +102,14 @@ p {
 
   .btn:disabled:hover {
     @apply cursor-not-allowed;
+  }
+
+  .btn-selected {
+    @apply bg-[var(--color-accent-1)] text-white border border-transparent cursor-default;
+  }
+
+  .btn-unselected {
+    @apply bg-[var(--color-bg-2)] text-[var(--color-text-2)] border border-[var(--color-border-1)] cursor-pointer;
   }
 
   .nav {
