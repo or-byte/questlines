@@ -36,7 +36,7 @@ export default function PaymentResponse(props: Response) {
             </div>
             <div class="flex justify-between">
               <p class="body-1">Amout paid</p>
-              <p class="body-1">{`₱${props.amount}`}</p>
+              <p class="body-1">{`${props.currency}${props.amount}`}</p>
             </div>
 
           </div>
