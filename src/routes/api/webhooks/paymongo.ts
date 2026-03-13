@@ -75,7 +75,6 @@ export async function POST({ request }: { request: Request }) {
       "unknown";
 
     const amountPaid = payment?.amount != null ? payment.amount / 100 : 0;
-    const email = session.billing?.email || session.customer_email || payment?.billing?.email || null;
 
     if (!transactionId) {
       console.warn("No transactionId in metadata");
@@ -89,6 +88,12 @@ export async function POST({ request }: { request: Request }) {
       });
       console.log(`Transaction ${transactionId} marked as PAID.`);
 
+      const tx = await prisma.transaction.findFirst({
+        where: { id: Number(transactionId) },
+        include: { user: true }
+      })
+      const email = tx?.user.email;
+      
       // Send email to user that payment was successful
       if (!email) {
         console.warn("No customer email found for transaction:", transactionId);
