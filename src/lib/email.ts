@@ -21,6 +21,7 @@ export async function getAccessToken() {
     body: params.toString(),
   });
 
+  console.log(response);
   if (!response.ok) {
     throw new Error("Failed to refresh access token");
   }
