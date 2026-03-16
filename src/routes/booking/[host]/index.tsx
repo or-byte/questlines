@@ -155,14 +155,29 @@ export default function Host() {
     const availableSlots = timeSlots.filter(slot => {
       return !txs.some(tx => {
         const times = tx.reservedTime.split(",");
-        const txStart = new Date(times[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(times[1]?.replace(/[\]\)]/, "") || txStart); // fallback to same time if single timestamp
 
-        // Check for overlap
-        return slot.start < txEnd && slot.end > txStart;
+        const clean = (s: string) => {
+          const t = s
+            .replace(/[\[\]\(\)"]/g, "")
+            .trim()
+            .replace(" ", "T");
+          return t.replace(/\+(\d{2})$/, "+$1:00");
+        };
+
+        const txStart = new Date(clean(times[0]));
+        const txEnd = new Date(clean(times[1] || times[0]));
+
+        if (isNaN(txStart.getTime()) || isNaN(txEnd.getTime())) {
+          console.warn("Invalid transaction time:", tx.reservedTime);
+          return false;
+        }
+
+        return (
+          slot.start.getTime() < txEnd.getTime() &&
+          slot.end.getTime() > txStart.getTime()
+        );
       });
     });
-
     setSlotsForDay(availableSlots);
 
   });

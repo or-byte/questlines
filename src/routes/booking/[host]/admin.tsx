@@ -142,10 +142,23 @@ export default function Host() {
       )
       .map(formatted => {
         const matchedTx = txs.find(tx => {
-          const [startRaw, endRaw] = tx.reservedTime.split(",");
-          const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
-          const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+          const times = tx.reservedTime.split(",");
 
+          const clean = (s: string) => {
+            const t = s
+              .replace(/[\[\]\(\)"]/g, "")
+              .trim()
+              .replace(" ", "T");
+            return t.replace(/\+(\d{2})$/, "+$1:00");
+          };
+
+          const txStart = new Date(clean(times[0]));
+          const txEnd = new Date(clean(times[1] || times[0]));
+
+          if (isNaN(txStart.getTime()) || isNaN(txEnd.getTime())) {
+            console.warn("Invalid transaction time:", tx.reservedTime);
+            return false;
+          }
           return formatted.start < txEnd && formatted.end > txStart;
         });
 
