@@ -16,11 +16,13 @@ import { clientOnly } from "@solidjs/start";
 import { useSession } from "~/lib/client/auth";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
+import { parseDate } from "~/utils/date";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
   { fallback: <div>Loading date picker...</div> }
 );
+
 export default function Host() {
   const session = useSession();
   const params = useParams();
@@ -144,22 +146,16 @@ export default function Host() {
         const matchedTx = txs.find(tx => {
           const times = tx.reservedTime.split(",");
 
-          const clean = (s: string) => {
-            const t = s
-              .replace(/[\[\]\(\)"]/g, "")
-              .trim()
-              .replace(" ", "T");
-            return t.replace(/\+(\d{2})$/, "+$1:00");
-          };
-
-          const txStart = new Date(clean(times[0]));
-          const txEnd = new Date(clean(times[1] || times[0]));
+          const txStart = new Date(parseDate(times[0]));
+          const txEnd = new Date(parseDate(times[1] || times[0]));
 
           if (isNaN(txStart.getTime()) || isNaN(txEnd.getTime())) {
             console.warn("Invalid transaction time:", tx.reservedTime);
             return false;
           }
-          return formatted.start < txEnd && formatted.end > txStart;
+
+          return formatted.start.getTime() < txEnd.getTime() &&
+            formatted.end.getTime() > txStart.getTime();
         });
 
 
@@ -176,8 +172,8 @@ export default function Host() {
       const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
       const isBooked = txs.some(tx => {
-        const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
+        const txStart = new Date(parseDate(tx.reservedTime.split(",")[0]));
+        const txEnd = new Date(parseDate(tx.reservedTime.split(",")[1] || tx.reservedTime.split(",")[0]));
         return slot.start < txEnd && slot.end > txStart;
       });
 

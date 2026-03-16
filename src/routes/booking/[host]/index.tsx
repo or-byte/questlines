@@ -17,6 +17,7 @@ import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
+import { parseDate } from "~/utils/date";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
@@ -156,16 +157,8 @@ export default function Host() {
       return !txs.some(tx => {
         const times = tx.reservedTime.split(",");
 
-        const clean = (s: string) => {
-          const t = s
-            .replace(/[\[\]\(\)"]/g, "")
-            .trim()
-            .replace(" ", "T");
-          return t.replace(/\+(\d{2})$/, "+$1:00");
-        };
-
-        const txStart = new Date(clean(times[0]));
-        const txEnd = new Date(clean(times[1] || times[0]));
+        const txStart = new Date(parseDate(times[0]));
+        const txEnd = new Date(parseDate(times[1] || times[0]));
 
         if (isNaN(txStart.getTime()) || isNaN(txEnd.getTime())) {
           console.warn("Invalid transaction time:", tx.reservedTime);
