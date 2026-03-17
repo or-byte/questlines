@@ -16,13 +16,11 @@ import { clientOnly } from "@solidjs/start";
 import { useSession } from "~/lib/client/auth";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
-import { parseDate } from "~/utils/date";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
   { fallback: <div>Loading date picker...</div> }
 );
-
 export default function Host() {
   const session = useSession();
   const params = useParams();
@@ -146,18 +144,11 @@ export default function Host() {
         const matchedTx = txs.find(tx => {
           const times = tx.reservedTime.split(",");
 
-          const txStart = new Date(parseDate(times[0]));
-          const txEnd = new Date(parseDate(times[1] || times[0]));
+          const txStart = new Date(times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+          const txEnd = new Date(times[1].replace(/[\]\)"]/g, "").trim());
 
-          if (isNaN(txStart.getTime()) || isNaN(txEnd.getTime())) {
-            console.warn("Invalid transaction time:", tx.reservedTime);
-            return false;
-          }
-
-          return formatted.start.getTime() < txEnd.getTime() &&
-            formatted.end.getTime() > txStart.getTime();
+          return formatted.start < txEnd && formatted.end > txStart;
         });
-
 
         return {
           ...formatted,
@@ -172,8 +163,11 @@ export default function Host() {
       const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
       const isBooked = txs.some(tx => {
-        const txStart = new Date(parseDate(tx.reservedTime.split(",")[0]));
-        const txEnd = new Date(parseDate(tx.reservedTime.split(",")[1] || tx.reservedTime.split(",")[0]));
+        const times = tx.reservedTime.split(",");
+
+        const txStart = new Date(times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+        const txEnd = new Date(times[1].replace(/[\]\)"]/g, "").trim());
+
         return slot.start < txEnd && slot.end > txStart;
       });
 

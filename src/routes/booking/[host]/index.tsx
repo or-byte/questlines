@@ -17,7 +17,6 @@ import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
-import { parseDate } from "~/utils/date";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
@@ -157,20 +156,13 @@ export default function Host() {
       return !txs.some(tx => {
         const times = tx.reservedTime.split(",");
 
-        const txStart = new Date(parseDate(times[0]));
-        const txEnd = new Date(parseDate(times[1] || times[0]));
+        const txStart = new Date(times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+        const txEnd = new Date((times[1]?.replace(/[\]\)"]/g, "").trim()) || times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
 
-        if (isNaN(txStart.getTime()) || isNaN(txEnd.getTime())) {
-          console.warn("Invalid transaction time:", tx.reservedTime);
-          return false;
-        }
-
-        return (
-          slot.start.getTime() < txEnd.getTime() &&
-          slot.end.getTime() > txStart.getTime()
-        );
+        return slot.start < txEnd && slot.end > txStart;
       });
     });
+
     setSlotsForDay(availableSlots);
 
   });
