@@ -199,6 +199,8 @@ export default function Host() {
         status: TransactionStatus.PENDING
       });
 
+      if (!transaction?.id) throw new Error("Failed to create transaction: ");
+
       const checkoutUrl = await createPaymongoCheckout(
         quantity,
         transaction.id,
@@ -216,7 +218,7 @@ export default function Host() {
 
     } catch (err) {
       console.error(err);
-      alert("Failed to start checkout");
+      throw new Error("Failed to start checkout");
     }
   };
 
