@@ -142,13 +142,13 @@ export default function Host() {
       )
       .map(formatted => {
         const matchedTx = txs.find(tx => {
-          const [startRaw, endRaw] = tx.reservedTime.split(",");
-          const txStart = new Date(startRaw.replace(/[\[\(]/, ""));
-          const txEnd = new Date(endRaw.replace(/[\]\)]/, ""));
+          const times = tx.reservedTime.split(",");
+
+          const txStart = new Date(times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+          const txEnd = new Date(times[1].replace(/[\]\)"]/g, "").trim());
 
           return formatted.start < txEnd && formatted.end > txStart;
         });
-
 
         return {
           ...formatted,
@@ -163,8 +163,11 @@ export default function Host() {
       const key = `${slot.start.getTime()}-${slot.end.getTime()}-${slot.productId}`;
 
       const isBooked = txs.some(tx => {
-        const txStart = new Date(tx.reservedTime.split(",")[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(tx.reservedTime.split(",")[1].replace(/[\]\)]/, ""));
+        const times = tx.reservedTime.split(",");
+
+        const txStart = new Date(times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+        const txEnd = new Date(times[1].replace(/[\]\)"]/g, "").trim());
+
         return slot.start < txEnd && slot.end > txStart;
       });
 

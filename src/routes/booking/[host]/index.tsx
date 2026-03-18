@@ -155,10 +155,10 @@ export default function Host() {
     const availableSlots = timeSlots.filter(slot => {
       return !txs.some(tx => {
         const times = tx.reservedTime.split(",");
-        const txStart = new Date(times[0].replace(/[\[\(]/, ""));
-        const txEnd = new Date(times[1]?.replace(/[\]\)]/, "") || txStart); // fallback to same time if single timestamp
 
-        // Check for overlap
+        const txStart = new Date(times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+        const txEnd = new Date((times[1]?.replace(/[\]\)"]/g, "").trim()) || times[0].replace(/[\[\("]/g, "").replace(/"/g, ""));
+
         return slot.start < txEnd && slot.end > txStart;
       });
     });

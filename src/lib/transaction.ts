@@ -101,16 +101,17 @@ export const getTransactionsForDay = async (
   dayEnd: Date
 ): Promise<{
   id: number,
-  reservedTime: string,
+  reservedTime: string
   userName: string,
   userEmail: string
 }[]> => {
   "use server"
 
-  return await prisma.$queryRaw<{ id: number, reservedTime: string, userName: string, userEmail: string }[]>`
+  const result = await prisma.$queryRaw<{ id: number, reservedTimeStart: string, reservedTimeEnd: string, userName: string, userEmail: string }[]>`
             SELECT 
                 t."id",
-                t."reservedTime"::text, 
+                lower(t."reservedTime") AS "reservedTimeStart",
+                upper(t."reservedTime") AS "reservedTimeEnd",
                 u."name" AS "userName",
                 u."email" AS "userEmail"
             FROM "Transaction" t
@@ -119,4 +120,18 @@ export const getTransactionsForDay = async (
                 AND t."reservedTime" && tstzrange(${dayStart}, ${dayEnd}, '[)')
                 AND t."status" = 'PAID'
         `;
+
+  const txs = result.map(t => {
+    const start = new Date(t.reservedTimeStart).toISOString();
+    const end = new Date(t.reservedTimeEnd).toISOString();
+
+    return {
+      id: t.id,
+      reservedTime: `["${start}","${end}")`,
+      userName: t.userName,
+      userEmail: t.userEmail
+    }
+  })
+
+  return txs;
 }
