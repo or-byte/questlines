@@ -45,6 +45,7 @@ export default function DatePickerClient(props: any) {
           </div>
         )
       }}
+      zIndex={200}
     />
   );
 }

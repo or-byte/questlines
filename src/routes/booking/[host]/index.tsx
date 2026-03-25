@@ -17,6 +17,7 @@ import { useSession } from "~/lib/client/auth";
 import { getUserIdByEmail as getUserIdByEmail } from "~/lib/user";
 import { Skeleton } from "@kobalte/core/skeleton";
 import HostSkeleton from "~/components/skeleton/HostSkeleton";
+import Modal from "~/components/modal/Modal";
 
 const DateTimePickerClient = clientOnly(
   () => import("~/components/calendar/DatePickerClient"),
