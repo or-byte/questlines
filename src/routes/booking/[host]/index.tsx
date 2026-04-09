@@ -348,6 +348,8 @@ export default function Host() {
                         ]}
                         total={totalPrice.toFixed(2).toString()}
                         onBook={() => handleBookNow(hours, slot())}
+                        bookingState={"FAILED"}
+                        timeLeft={60}
                       />
                     </>
                   );
